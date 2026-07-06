@@ -1,0 +1,31 @@
+services:
+  dag-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dag-manager
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - UPLOAD_FOLDER=/root/dags
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - APP_USERNAME=${APP_USERNAME:-admin}
+      - APP_PASSWORD=${APP_PASSWORD:-admin}
+    volumes:
+      # Monta a pasta de DAGs do droplet (host) no mesmo caminho dentro do container
+      - /root/dags:/root/dags
+      # Teste local
+      #- dag_files:/root/dags
+
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# Teste local
+# volumes:
+#   dag_files:
+#   driver: local
