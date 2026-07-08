@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Container do dbt configurado para utilizar o DuckDB
+  dbt-duckdb:
+    build:
+      context: ../dbt
+      dockerfile: Dockerfile
+    container_name: dbt_duckdb_runner
+    volumes:
+      # Mapeia a estrutura do dbt para desenvolvimento local
+      - ../dbt:/usr/app
+      # Volume nomeado para persistência do arquivo de banco de dados do DuckDB
+      - duckdb_data:/usr/app/data
+    environment:
+      # Caminho do banco de dados persistido no volume mapeado
+      - DBT_DUCKDB_PATH=/usr/app/data/prod.duckdb
+      - DBT_DUCKDB_THREADS=4
+      
+      # Variáveis de Ambiente para ler/escrever arquivos diretamente na AWS S3
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - AWS_S3_ENDPOINT=${AWS_S3_ENDPOINT:-} # Deixar vazio para AWS S3 padrão, ou preencher para LocalStack/compatíveis
+      - AWS_S3_USE_SSL=true
+    command: ["dbt", "debug", "--target", "dev_duckdb"]
+
+volumes:
+  # Volume compartilhado para persistência física do arquivo .duckdb
+  duckdb_data:
+    driver: local

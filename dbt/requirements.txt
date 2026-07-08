@@ -1,0 +1,5 @@
+dbt-core>=1.8.0
+dbt-postgres>=1.8.0
+dbt-snowflake>=1.8.0
+dbt-oracle>=1.8.0
+dbt-duckdb>=1.8.0

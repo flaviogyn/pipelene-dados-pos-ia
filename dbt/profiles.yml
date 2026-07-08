@@ -1,0 +1,55 @@
+pipelene_dbt:
+  target: dev_postgres # Default connection target
+  outputs:
+    # 1. PostgreSQL Connection
+    dev_postgres:
+      type: postgres
+      host: "{{ env_var('DBT_POSTGRES_HOST', 'localhost') }}"
+      port: {{ env_var('DBT_POSTGRES_PORT', '5432') | int }}
+      user: "{{ env_var('DBT_POSTGRES_USER', 'postgres') }}"
+      password: "{{ env_var('DBT_POSTGRES_PASSWORD', 'postgres') }}"
+      dbname: "{{ env_var('DBT_POSTGRES_DBNAME', 'postgres') }}"
+      schema: "{{ env_var('DBT_POSTGRES_SCHEMA', 'public') }}"
+      threads: 4
+
+    # 2. Snowflake Connection
+    dev_snowflake:
+      type: snowflake
+      account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
+      password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
+      database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
+      warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
+      schema: "{{ env_var('DBT_SNOWFLAKE_SCHEMA') }}"
+      threads: 4
+
+    # 3. Oracle 19c Connection (using Thin Mode)
+    dev_oracle:
+      type: oracle
+      host: "{{ env_var('DBT_ORACLE_HOST', 'localhost') }}"
+      port: {{ env_var('DBT_ORACLE_PORT', '1521') | int }}
+      user: "{{ env_var('DBT_ORACLE_USER') }}"
+      password: "{{ env_var('DBT_ORACLE_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_ORACLE_DBNAME', 'ORCL') }}" # Service Name or SID
+      schema: "{{ env_var('DBT_ORACLE_SCHEMA') }}"
+      threads: 4
+
+    # 4. DuckDB Connection
+    dev_duckdb:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', '/usr/app/data/prod.duckdb') }}"
+      threads: {{ env_var('DBT_DUCKDB_THREADS', '4') | int }}
+      
+      # Extensões úteis para integração com Object Storage (DigitalOcean Spaces / S3)
+      extensions:
+        - httpfs
+        - parquet
+      
+      # Configurações para acesso ao DigitalOcean Spaces (S3 compatible)
+      settings:
+        s3_access_key_id: "{{ env_var('AWS_ACCESS_KEY_ID', '') }}"
+        s3_secret_access_key: "{{ env_var('AWS_SECRET_ACCESS_KEY', '') }}"
+        s3_region: "{{ env_var('AWS_DEFAULT_REGION', 'us-east-1') }}"
+        s3_endpoint: "{{ env_var('AWS_S3_ENDPOINT', '') }}"
+        s3_use_ssl: "{{ env_var('AWS_S3_USE_SSL', 'true') }}"

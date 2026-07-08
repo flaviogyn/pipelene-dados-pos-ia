@@ -1,0 +1,23 @@
+name: 'pipelene_dbt'
+version: '1.0.0'
+config-version: 2
+
+# Link to the profile defined in profiles.yml
+profile: 'pipelene_dbt'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  pipelene_dbt:
+    # By default, models will be materialized as views.
+    # Can be overridden in schema files or model configurations.
+    +materialized: view
