@@ -1,4 +1,6 @@
 # Notebooks
 
-## Colab usado para fins do projeto.
+## Colab usado para fins do projeto dados Não Estruturados
 [Link do Colab](https://colab.research.google.com/drive/1Q1Uy2uQmQzih-LCs9sWBXNmTN1BrFZR_?usp=sharing)
+
+## Colab usado para fins do projeto dados Estruturados

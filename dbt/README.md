@@ -1,70 +1,92 @@
 # dbt
 
-Este diretório contém a estrutura do **dbt (data build tool)** configurada para rodar em containers Docker, conectando-se a:
-* **PostgreSQL**
-* **Snowflake**
-* **Oracle 19c** (utilizando o driver Thin Mode do `python-oracledb`, sem necessidade de instalar a biblioteca Oracle Client).
+Projeto dbt configurado para usar DuckDB como substituto analitico do Snowflake.
 
----
+O target principal e `dev_duckdb`. Ele usa DuckDB localmente no container e pode ler/escrever dados no AWS S3 ou em storage compativel com S3.
 
-## 🚀 Como Rodar com Docker
+## Subir com Docker
 
-### 1. Construir a imagem Docker
-No diretório `dbt/`, execute:
+Dentro da pasta `dbt/`:
+
 ```bash
-docker build -t pipelene-dbt .
+cp .env.example .env
+docker compose build
+docker compose run --rm dbt debug --target dev_duckdb
 ```
 
-### 2. Executar Comandos do dbt
-Para executar comandos, mapeie o diretório do projeto e passe as variáveis de ambiente necessárias para conexão.
+Executar os modelos:
 
-#### Exemplo: Conexão PostgreSQL (Target: `dev_postgres`)
 ```bash
-docker run -it --rm `
-  -v ${PWD}:/usr/app `
-  -e DBT_POSTGRES_HOST="seu_host" `
-  -e DBT_POSTGRES_PORT=5432 `
-  -e DBT_POSTGRES_USER="postgres" `
-  -e DBT_POSTGRES_PASSWORD="sua_senha" `
-  -e DBT_POSTGRES_DBNAME="seu_banco" `
-  -e DBT_POSTGRES_SCHEMA="public" `
-  pipelene-dbt dbt debug --target dev_postgres
+docker compose run --rm dbt run --target dev_duckdb
+docker compose run --rm dbt test --target dev_duckdb
 ```
 
-#### Exemplo: Conexão Snowflake (Target: `dev_snowflake`)
+Gerar documentacao:
+
 ```bash
-docker run -it --rm `
-  -v ${PWD}:/usr/app `
-  -e DBT_SNOWFLAKE_ACCOUNT="sua_conta" `
-  -e DBT_SNOWFLAKE_USER="seu_usuario" `
-  -e DBT_SNOWFLAKE_PASSWORD="sua_senha" `
-  -e DBT_SNOWFLAKE_ROLE="sua_role" `
-  -e DBT_SNOWFLAKE_DATABASE="seu_banco" `
-  -e DBT_SNOWFLAKE_WAREHOUSE="seu_warehouse" `
-  -e DBT_SNOWFLAKE_SCHEMA="seu_schema" `
-  pipelene-dbt dbt debug --target dev_snowflake
+docker compose run --rm dbt docs generate --target dev_duckdb
 ```
 
-#### Exemplo: Conexão Oracle (Target: `dev_oracle`)
-```bash
-docker run -it --rm `
-  -v ${PWD}:/usr/app `
-  -e DBT_ORACLE_HOST="seu_host" `
-  -e DBT_ORACLE_PORT=1521 `
-  -e DBT_ORACLE_USER="seu_usuario" `
-  -e DBT_ORACLE_PASSWORD="sua_senha" `
-  -e DBT_ORACLE_DBNAME="seu_servico_ou_sid" `
-  -e DBT_ORACLE_SCHEMA="seu_schema" `
-  pipelene-dbt dbt debug --target dev_oracle
+## Variaveis principais
+
+Configure no `.env`:
+
+```text
+DBT_DUCKDB_PATH=/data/analytics.duckdb
+DBT_DUCKDB_THREADS=4
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_S3_ENDPOINT=
+AWS_S3_USE_SSL=true
 ```
 
----
+Para AWS S3 puro, deixe `AWS_S3_ENDPOINT` vazio. Para DigitalOcean Spaces, use o endpoint do seu espaco, por exemplo:
 
-## 📁 Estrutura de Arquivos Criada
-* [Dockerfile](file:///c:/Projetos/ia/pipelene-dados-pos-ia/dbt/Dockerfile): Configura a imagem base com Python 3.10-slim e os adaptadores de conexão.
-* [requirements.txt](file:///c:/Projetos/ia/pipelene-dados-pos-ia/dbt/requirements.txt): Declara o dbt-core e os adaptadores específicos.
-* [profiles.yml](file:///c:/Projetos/ia/pipelene-dados-pos-ia/dbt/profiles.yml): Define os perfis de conexão dinamizados com variáveis de ambiente.
-* [dbt_project.yml](file:///c:/Projetos/ia/pipelene-dados-pos-ia/dbt/dbt_project.yml): Configuração geral do projeto dbt.
-* [models/](file:///c:/Projetos/ia/pipelene-dados-pos-ia/dbt/models): Modelos de exemplo para validação da estrutura.
+```text
+AWS_S3_ENDPOINT=nyc3.digitaloceanspaces.com
+```
 
+## Volumes
 
+O Compose monta:
+
+```text
+./              -> /usr/app
+../duckdb/data  -> /data
+../s3           -> /workspace/s3
+```
+
+Assim, o arquivo DuckDB compartilhado fica em:
+
+```text
+../duckdb/data/analytics.duckdb
+```
+
+## Como usar S3 nos modelos
+
+Exemplo de leitura de Parquet:
+
+```sql
+select *
+from read_parquet('s3://nome-do-bucket/bronze/usuarios/*.parquet');
+```
+
+Exemplo de escrita em Parquet:
+
+```sql
+copy (
+    select *
+    from {{ ref('fct_usuarios_ativos') }}
+) to 's3://nome-do-bucket/gold/fct_usuarios_ativos.parquet'
+  (format parquet);
+```
+
+## Estrutura esperada no projeto
+
+- `models/staging`: modelos de staging.
+- `models/marts/dim`: dimensoes.
+- `models/marts/fct`: fatos.
+- `models/ml`: features, metricas e predicoes para ML.
+- `profiles.yml`: target `dev_duckdb`.
+- `docker-compose.yml`: runner Docker do dbt.

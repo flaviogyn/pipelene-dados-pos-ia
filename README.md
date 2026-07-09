@@ -7,3 +7,8 @@
 ### Flávio Lourenço da Silva
 ### Gustavo Adolpho Souteras Barbosa
 
+## O que falta
+
+- Conector para o duckdb para usar no airflow
+- Transformar as dags em funções Python
+- Adicionar mais testes

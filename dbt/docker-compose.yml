@@ -1,20 +1,22 @@
 services:
-  duckdb:
+  dbt:
     build:
       context: .
       dockerfile: Dockerfile
-    image: pipelene-duckdb:latest
-    container_name: pipelene_duckdb
+    image: pipelene-dbt-duckdb:latest
+    container_name: pipelene_dbt_duckdb
+    working_dir: /usr/app
     environment:
-      DUCKDB_PATH: ${DUCKDB_PATH:-/data/analytics.duckdb}
+      DBT_PROFILES_DIR: /usr/app
+      DBT_DUCKDB_PATH: ${DBT_DUCKDB_PATH:-/data/analytics.duckdb}
+      DBT_DUCKDB_THREADS: ${DBT_DUCKDB_THREADS:-4}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
       AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
       AWS_S3_USE_SSL: ${AWS_S3_USE_SSL:-true}
     volumes:
-      - ./data:/data
-      - ./sql:/sql
+      - .:/usr/app
+      - ../duckdb/data:/data
       - ../s3:/workspace/s3
-    stdin_open: true
-    tty: true
+    command: ["dbt", "debug", "--target", "dev_duckdb"]

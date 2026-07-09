@@ -1,5 +1,5 @@
 pipelene_dbt:
-  target: dev_postgres # Default connection target
+  target: dev_duckdb
   outputs:
     # 1. PostgreSQL Connection
     dev_postgres:
