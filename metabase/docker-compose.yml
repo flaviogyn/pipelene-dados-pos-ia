@@ -1,0 +1,17 @@
+services:
+  metabase:
+    image: metabase/metabase:latest
+    container_name: metabase
+    ports:
+      - "${MB_PORT:-3000}:3000"
+    environment:
+      MB_JETTY_HOST: 0.0.0.0
+      MB_ENABLE_QUERY_CACHING: true
+      MB_DB_FILE: /metabase-data/metabase.db
+    volumes:
+      - metabase_data:/metabase-data
+      - ../duckdb/data:/data/duckdb:ro
+    restart: unless-stopped
+
+volumes:
+  metabase_data:
