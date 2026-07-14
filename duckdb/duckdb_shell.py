@@ -36,8 +36,9 @@ def execute(conn, sql):
         print(result.fetchdf().to_string(index=False))
 
 
-def repl(conn, path):
-    print(f"DuckDB: {path}")
+def repl(conn, path, readonly=False):
+    mode = " (readonly)" if readonly else ""
+    print(f"DuckDB: {path}{mode}")
     print("Use .exit para sair. Termine comandos SQL com ponto e virgula.")
     buffer = []
 
@@ -66,11 +67,24 @@ def main():
     parser.add_argument("database", nargs="?", default=os.getenv("DUCKDB_PATH", "/data/analytics.duckdb"))
     parser.add_argument("-c", "--command")
     parser.add_argument("-f", "--file")
+    parser.add_argument(
+        "--readonly",
+        action="store_true",
+        help="Abre o arquivo em modo somente leitura (não disputa lock com o dbt).",
+    )
     args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(args.database), exist_ok=True)
+    if args.readonly:
+        # Não cria o diretório/arquivo em modo leitura: se o banco ainda não
+        # existe, é melhor falhar com um erro claro do que criar um arquivo
+        # vazio sem querer.
+        if not os.path.exists(args.database):
+            print(f"Erro: {args.database} não existe (modo --readonly não cria arquivo novo).", file=sys.stderr)
+            sys.exit(1)
+    else:
+        os.makedirs(os.path.dirname(args.database), exist_ok=True)
 
-    conn = duckdb.connect(args.database)
+    conn = duckdb.connect(args.database, read_only=args.readonly)
     configure_s3(conn)
 
     if args.command:
@@ -82,7 +96,7 @@ def main():
             execute(conn, file.read())
         return
 
-    repl(conn, args.database)
+    repl(conn, args.database, readonly=args.readonly)
 
 
 if __name__ == "__main__":
