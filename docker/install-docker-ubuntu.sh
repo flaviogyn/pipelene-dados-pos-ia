@@ -13,11 +13,13 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 
+echo "Instalando Docker no Ubuntu..."
+
 apt-get update
 apt-get install -y ca-certificates curl gnupg lsb-release ufw
 
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
 
 echo \
@@ -30,9 +32,14 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 systemctl enable docker
 systemctl start docker
 
-if id -u "$SUDO_USER" >/dev/null 2>&1; then
+if [[ -n "${SUDO_USER:-}" ]] && id -u "$SUDO_USER" >/dev/null 2>&1; then
   usermod -aG docker "$SUDO_USER"
-  echo "Usuário $SUDO_USER adicionado ao grupo docker."
+  echo "Usuario $SUDO_USER adicionado ao grupo docker."
+elif [[ "${USER:-}" != "root" ]] && id -u "$USER" >/dev/null 2>&1; then
+  usermod -aG docker "$USER"
+  echo "Usuario $USER adicionado ao grupo docker."
+else
+  echo "Executando como root. Nenhum usuario comum foi adicionado ao grupo docker."
 fi
 
 if command -v ufw >/dev/null 2>&1; then
@@ -40,7 +47,7 @@ if command -v ufw >/dev/null 2>&1; then
   ufw --force enable >/dev/null 2>&1 || true
 fi
 
-echo "Instalação concluída."
+echo "Instalacao concluida."
 echo "Verifique com: docker --version"
 echo "Verifique o compose com: docker compose version"
-echo "Para usar o docker sem sudo, faça logout/login ou rode: newgrp docker"
+echo "Para usar o docker sem sudo, faca logout/login ou rode: newgrp docker"

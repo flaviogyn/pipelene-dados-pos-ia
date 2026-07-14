@@ -4,6 +4,12 @@ Esta pasta contem um container utilitario para abrir DuckDB e consultar arquivos
 
 DuckDB nao e um servidor de banco. Ele roda embarcado no processo que executa a consulta. Por isso, este container serve para acesso interativo, testes SQL e inspecao do arquivo `analytics.duckdb`.
 
+## Enviando arquivos para o servidor
+
+```bash
+scp -r . root@<IP>:/root/duckdb
+```
+
 ## Subir com Docker
 
 Dentro da pasta `duckdb/`:

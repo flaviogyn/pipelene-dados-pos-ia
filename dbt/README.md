@@ -4,6 +4,12 @@ Projeto dbt configurado para usar DuckDB como substituto analitico do Snowflake.
 
 O target principal e `dev_duckdb`. Ele usa DuckDB localmente no container e pode ler/escrever dados no AWS S3 ou em storage compativel com S3.
 
+## Enviando arquivos para o servidor
+
+```bash
+scp -r . root@<IP>:/root/dbt
+```
+
 ## Subir com Docker
 
 Dentro da pasta `dbt/`:

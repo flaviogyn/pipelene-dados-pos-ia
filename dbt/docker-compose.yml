@@ -19,4 +19,5 @@ services:
       - .:/usr/app
       - ../duckdb/data:/data
       - ../s3:/workspace/s3
-    command: ["dbt", "debug", "--target", "dev_duckdb"]
+    entrypoint: ["dbt"]
+    command: ["debug", "--target", "dev_duckdb"]
