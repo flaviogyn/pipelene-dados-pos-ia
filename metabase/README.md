@@ -52,18 +52,12 @@ O compose usa um volume persistente para guardar o banco H2 do Metabase em:
 
 Isso evita perder os dados do Metabase entre reinicializações do container.
 
-## Observações sobre o DuckDB
+## Observações
 
-O compose também monta a pasta do projeto:
-
-```text
-../duckdb/data:/data/duckdb:ro
-```
-
-Isso permite que o Metabase tenha acesso local aos arquivos do DuckDB, como por exemplo:
+O compose usa apenas o volume persistente do Metabase para o banco H2:
 
 ```text
-../duckdb/data/analytics.duckdb
+metabase_data:/metabase-data
 ```
 
 ## Variáveis de ambiente

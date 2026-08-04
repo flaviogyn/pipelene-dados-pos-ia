@@ -1,7 +1,7 @@
 # Guia de configuração do Airflow DAG
 
 ## 1. Configurar autenticação SSH entre droplets
-O Airflow precisa se conectar ao droplet do dbt/DuckDB via SSH usando chave pública/privada.
+O Airflow precisa se conectar ao droplet do dbt via SSH usando chave pública/privada.
 
 No droplet do Airflow, gere uma chave dedicada (não use sua chave pessoal):
 
@@ -9,7 +9,7 @@ No droplet do Airflow, gere uma chave dedicada (não use sua chave pessoal):
 ssh-keygen -t ed25519 -f ~/.ssh/airflow_to_dbt -N ""
 ```
 
-Copie a chave pública para o droplet do dbt/DuckDB:
+Copie a chave pública para o droplet do dbt:
 
 ```bash
 ssh-copy-id -i ~/.ssh/airflow_to_dbt.pub root@IP_DO_DROPLET_B
@@ -19,7 +19,7 @@ ssh-copy-id -i ~/.ssh/airflow_to_dbt.pub root@IP_DO_DROPLET_B
 
 ## 2. Ajustar firewall e rede
 
-- No droplet do dbt/DuckDB, libere a porta `22` apenas para o IP do droplet do Airflow. Não use `0.0.0.0/0`.
+- No droplet do dbt, libere a porta `22` apenas para o IP do droplet do Airflow. Não use `0.0.0.0/0`.
 - Na DigitalOcean, o Cloud Firewall é separado do UFW. Configure o Cloud Firewall e, se necessário, também o UFW no droplet.
 
 ### Dica

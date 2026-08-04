@@ -1,8 +1,14 @@
 # dbt
 
-Projeto dbt configurado para usar DuckDB como substituto analitico do Snowflake.
+## IP Cloud
 
-O target principal e `dev_duckdb`. Ele usa DuckDB localmente no container e pode ler/escrever dados no AWS S3 ou em storage compativel com S3.
+```text
+159.89.226.24
+```
+
+Projeto dbt configurado para usar Snowflake como target de desenvolvimento.
+
+O target principal é `dev_snowflake`. Ele usa Snowflake como destino e pode ler/escrever dados em storage compatível com S3.
 
 ## Enviando arquivos para o servidor
 
@@ -17,20 +23,20 @@ Dentro da pasta `dbt/`:
 ```bash
 cp .env.example .env
 docker compose build
-docker compose run --rm dbt debug --target dev_duckdb
+docker compose run --rm dbt debug --target dev_snowflake
 ```
 
 Executar os modelos:
 
 ```bash
-docker compose run --rm dbt run --target dev_duckdb
-docker compose run --rm dbt test --target dev_duckdb
+docker compose run --rm dbt run --target dev_snowflake
+docker compose run --rm dbt test --target dev_snowflake
 ```
 
 Gerar documentacao:
 
 ```bash
-docker compose run --rm dbt docs generate --target dev_duckdb
+docker compose run --rm dbt docs generate --target dev_snowflake
 ```
 
 ## Variaveis principais
@@ -38,8 +44,14 @@ docker compose run --rm dbt docs generate --target dev_duckdb
 Configure no `.env`:
 
 ```text
-DBT_DUCKDB_PATH=/data/analytics.duckdb
-DBT_DUCKDB_THREADS=4
+DBT_TARGET=dev_snowflake
+DBT_SNOWFLAKE_ACCOUNT=<sua_conta>
+DBT_SNOWFLAKE_USER=<seu_usuario>
+DBT_SNOWFLAKE_PASSWORD=<sua_senha>
+DBT_SNOWFLAKE_ROLE=<seu_papel>
+DBT_SNOWFLAKE_DATABASE=<seu_banco>
+DBT_SNOWFLAKE_WAREHOUSE=<seu_warehouse>
+DBT_SNOWFLAKE_SCHEMA=<seu_esquema>
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 AWS_DEFAULT_REGION=us-east-1
@@ -59,15 +71,10 @@ O Compose monta:
 
 ```text
 ./              -> /usr/app
-../duckdb/data  -> /data
 ../s3           -> /workspace/s3
 ```
 
-Assim, o arquivo DuckDB compartilhado fica em:
-
-```text
-../duckdb/data/analytics.duckdb
-```
+O dbt acessa seus arquivos do projeto e o S3 via variáveis de ambiente.
 
 ## Como usar S3 nos modelos
 
@@ -94,5 +101,5 @@ copy (
 - `models/marts/dim`: dimensoes.
 - `models/marts/fct`: fatos.
 - `models/ml`: features, metricas e predicoes para ML.
-- `profiles.yml`: target `dev_duckdb`.
+- `profiles.yml`: target `dev_snowflake`.
 - `docker-compose.yml`: runner Docker do dbt.

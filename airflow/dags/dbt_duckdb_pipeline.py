@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from airflow import DAG
@@ -8,15 +9,15 @@ from airflow.operators.bash import BashOperator
 
 DBT_PROJECT_DIR = "/opt/airflow/dbt"
 DBT_PROFILES_DIR = "/opt/airflow/dbt"
-DBT_TARGET = "dev_duckdb"
+DBT_TARGET = os.getenv("DBT_TARGET", "dev_postgres")
 
 
 with DAG(
-    dag_id="dbt_duckdb_pipeline",
+    dag_id="dbt_pipeline",
     start_date=datetime(2026, 1, 1),
     schedule=None,
     catchup=False,
-    tags=["dbt", "duckdb"],
+    tags=["dbt"],
 ) as dag:
     dbt_debug = BashOperator(
         task_id="dbt_debug",

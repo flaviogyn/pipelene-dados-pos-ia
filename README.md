@@ -9,6 +9,6 @@
 
 ## O que falta
 
-- Conector para o duckdb para usar no airflow
+- Conector para o dbt para usar no airflow
 - Transformar as dags em funções Python
 - Adicionar mais testes

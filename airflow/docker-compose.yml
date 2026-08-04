@@ -80,7 +80,7 @@ x-airflow-common:
 
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
 
     # yamllint disable rule:line-length
     # Health check HTTP simples no scheduler
@@ -90,13 +90,17 @@ x-airflow-common:
 
     # AVISO: use _PIP_ADDITIONAL_REQUIREMENTS apenas para testes rápidos.
     # Para produção/desenvolvimento contínuo, construa/estenda a imagem.
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-apache-airflow-providers-snowflake}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:0"
+  deploy:
+    resources:
+      limits:
+        memory: 3G
   depends_on:
     &airflow-common-depends-on
     redis:
@@ -171,6 +175,7 @@ services:
 
   airflow-worker:
     <<: *airflow-common
+    mem_limit: 2G
     command: celery worker
     healthcheck:
       # yamllint disable rule:line-length
