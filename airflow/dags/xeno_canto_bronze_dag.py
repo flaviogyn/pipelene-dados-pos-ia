@@ -10,9 +10,11 @@ from airflow.exceptions import AirflowConfigException
 from airflow.sdk import Variable
 import io
 import json
-import re
 import requests
 import logging
+import re
+import os
+import pendulum
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +28,6 @@ def format_query_for_key(query: str) -> str:
     cleaned = re.sub(r'[^a-zA-Z0-9\-]', '', cleaned)
     return cleaned.lower()
 
-
 # Define os parâmetros básicos do DAG, como escala e data de início
 @dag(
     schedule=None,
@@ -37,7 +38,38 @@ def format_query_for_key(query: str) -> str:
 def ai_xeno_canto_bronze():
     # Define tasks
     @task
-    def obter_lista_gravacoes(query):
+    def obter_configuracao():
+        """
+        Obtém configurações de download do Airflow.
+        Assim, pode-se parametrizar quais aves e quantos arquivos
+        a DAG vai buscar no servidor da Xeno-Canto.
+        """
+        config = Variable.get("xeno_canto_config", deserialize_json=True)
+        if not config:
+            raise AirflowConfigException(
+                "A variável 'xeno_canto_config' não foi cadastrada "
+                "ou está vazia."
+            )
+
+        return config
+
+    @task
+    def preparar_consultas(config):
+        """
+        Para manter as configurações das espécies separadas e
+        permitir a paralelização do processo, criou-se esta
+        função. Ela retorna uma lista de configurações que o
+        Dynamic Task Mapping do airflow pode usar.
+        """
+        return [
+        {
+            "especie": especie,
+            "quantidade": quantidade
+        } 
+        for especie, quantidade in config.items()]
+
+    @task
+    def obter_lista_gravacoes(especie, quantidade):
         """
         Obtém a lista de arquivos de áudio desejada.
         A lista é obtida através da API da Xeno-Canto.
@@ -60,51 +92,82 @@ def ai_xeno_canto_bronze():
                 "A variável 's3_bucket' não foi cadastrada no Airflow."
             )
 
-        logger.info("Iniciando download das gravações.")
+        # Monta a query a partir da espécie.
+        query = f'sp:"{especie}"'
+
+        logger.info(f"Iniciando busca de gravações para {especie}.")
         # Aqui faz a requisição da lista de arquivos com
         # as gravações de audio.
         url = "https://xeno-canto.org/api/3/recordings"
-        params = {
-            "query": query,
-            "key": xeno_key
-        }
+        params = {"query": query, "key": xeno_key}
 
         response = requests.get(url, params=params)
         response.raise_for_status()
         dados = response.json()
 
-        logger.info(f"Encontradas {dados['numRecordings']} gravações.")
+        logger.info(f"Encontradas {dados['numRecordings']} gravações "
+                    f"para {especie}.")
 
         # Para salvar o arquivo no S3, devemos converter
         # os dados em memória para um arquivo.
         # Fazemos isto aqui.
-        arquivo = io.BytesIO(
-            json.dumps(dados).encode("utf-8")
-        )
+        arquivo = io.BytesIO(json.dumps(dados).encode("utf-8"))
+
+        # Gera o nome da key a partir da query.
+        nome_arquivo = format_query_for_key(query)
 
         logger.info("Salvando query no Bucket S3.")
         # Cria um Hook S3 e salva o arquivo.
         hook = S3Hook(aws_conn_id='aws_conn')
         hook.load_file_obj(
             file_obj=arquivo,
-            key=f'bronze/birds-{format_query_for_key(query)}.json',
+            key=f'bronze/query/{nome_arquivo}.json',
             bucket_name=s3_bucket,
             replace=True
         )
 
         # Retorna a lista obtida para posterior
         # processamento
-        return dados
-    
-    @task
-    def selecionar_audio(lista_gravacoes):
-        """
-        Esta função retorna um arquivo da lista para
-        download. É uma função de teste.
-        """
-        return lista_gravacoes["recordings"][0]
+        return {
+            'especie': especie, 
+            'quantidade': quantidade, 
+            'dados': dados
+        }
 
     @task
+    def selecionar_audios(resultado):
+        """
+        Seleciona a quantidade de gravações definida
+        para uma determinada espécie.
+        """
+        quantidade = resultado['quantidade']
+        dados = resultado['dados']
+        gravacoes = dados['recordings']    # Campo recordings definido pela
+                                           # API da Xeno-Canto é um array
+                                           # json de todas as gravações
+                                           # encontradas.
+        return gravacoes[:quantidade]
+
+    @task
+    def juntar_audios(listas_audios):
+        """
+        Junta as listas de gravações de todas as espécies baixadas
+        em uma única lista.
+        """
+        todas_gravacoes = []
+
+        for lista in listas_audios:
+            todas_gravacoes.extend(lista)
+
+        return todas_gravacoes
+
+    @task(
+        retries=5,
+        retry_delay=pendulum.duration(seconds=5),
+        retry_exponential_backoff=True,
+        max_retry_delay=pendulum.duration(minutes=5),
+        pool="xeno_canto_download"
+    )
     def baixar_audio(gravacao):
         """
         Faz o download de um arquivo de áudio selecionado.
@@ -116,21 +179,31 @@ def ai_xeno_canto_bronze():
                 "A variável 's3_bucket' não foi cadastrada no Airflow."
             )
 
-        logger.info(f'Tratamento da gravação {gravacao["id"]}.')
+        logger.info(f"Tratamento da gravação de ID {gravacao["id"]}.")
 
         # Criando o Hook S3 para ser usado nas duas próximas ações
         hook = S3Hook(aws_conn_id='aws_conn')
 
-        logger.info(f'Obtendo arquivo {gravacao["file"]}.')
+        nome_original = gravacao['file-name']
+        # Obtém a extensão do arquivo original.
+        _, extensao = os.path.splitext(nome_original)
+
+        if not extensao:
+            raise AirflowException(
+                f"Não foi possível determinar a extensão do arquivo "
+                f"{nome_original}."
+            )
+
         # Salvando o áudio no Bucket S3
-        audio = requests.get(gravacao["file"])
+        logger.info(f"Obtendo arquivo {gravacao['id']}{extensao}.")
+        audio = requests.get(gravacao["file"], timeout=60)
         audio.raise_for_status()
         arquivo_audio = io.BytesIO(audio.content)
 
-        logger.info(f'Salvando arquivo {gravacao["id"]}.mp3.')
+        logger.info(f"Salvando arquivo {gravacao['id']}{extensao}.")
         hook.load_file_obj(
             file_obj=arquivo_audio,
-            key=f'bronze/audio/{gravacao["id"]}.mp3',
+            key=f"bronze/audio/{gravacao['id']}{extensao}",
             bucket_name=s3_bucket,
             replace=True
         )
@@ -148,14 +221,28 @@ def ai_xeno_canto_bronze():
         )
 
     # Aqui está o processo de upload de arquivos no Bucket S3
-    lista_gravacoes = obter_lista_gravacoes('sp:"Pitangus sulphuratus"')
-    audio = selecionar_audio(lista_gravacoes)
+    # O código foi escrito para aproveitar ao máximo o 
+    # Dynamic Task Mapping, descrito no link:
+    # https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/dynamic-task-mapping.html
+    
+    # 1. Obtém a configuração da Variable.
+    config = obter_configuracao()
 
-    lista_gravacoes = obter_lista_gravacoes('sp:"Turdus rufiventris"') 
-    audio = selecionar_audio(lista_gravacoes)
+    # 2. Transforma a configuração em argumentos
+    #    para o Dynamic Task Mapping.
+    consultas = preparar_consultas(config)
 
+    # 3. Executa uma consulta Xeno-Canto para cada espécie.
+    resultados = obter_lista_gravacoes.expand_kwargs(consultas)
 
-    baixar_audio(audio)
+    # 4. Seleciona a quantidade configurada para cada espécie.
+    audios = selecionar_audios.expand(resultado=resultados)
+
+    # 5. Junta as listas de todas as espécies consultadas.
+    todas_gravacoes = juntar_audios(audios)
+
+    # 6. Executa um download para cada gravação.
+    baixar_audio.expand(gravacao=todas_gravacoes)
 
 # Instanciando o DAG
 ai_xeno_canto_bronze()
