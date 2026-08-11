@@ -1,0 +1,44 @@
+# Ignorar arquivos desnecessários no build do Docker
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+ENV/
+
+# Variáveis de ambiente (nunca enviar para a imagem)
+.env
+.env.*
+
+# Editores / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Git
+.git/
+.gitignore
+
+# README e docs
+README.md
+*.md

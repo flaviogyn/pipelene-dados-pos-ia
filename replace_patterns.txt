@@ -1,0 +1,11 @@
+# Token Snowflake
+regex:SNOWFLAKE_TOKEN=[A-Za-z0-9_-]+ =SNOWFLAKE_TOKEN=REDACTED
+
+# AWS Temporary Access Key ID
+regex:AKIA[0-9A-Z]{16}=AKIA***REDACTED***
+
+# AWS Secret Access Key
+regex:aws_secret_access_key=[A-Za-z0-9/+=]{40}=aws_secret_access_key=REDACTED
+
+# AWS Session Token
+regex:aws_session_token=[A-Za-z0-9/+=]{40}=aws_session_token=REDACTED

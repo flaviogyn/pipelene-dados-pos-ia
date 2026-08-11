@@ -1,0 +1,126 @@
+{
+    "id": "694038",
+    "gen": "Troglodytes",
+    "sp": "troglodytes",
+    "ssp": "",
+    "grp": "birds",
+    "en": "Eurasian Wren",
+    "rec": "Jacobo Ramil MIllarengo",
+    "cnt": "Spain",
+    "loc": "Sisalde, Ames, A Coruña, Galicia",
+    "lat": "42.8373",
+    "lon": "-8.652",
+    "alt": "30",
+    "type": "song",
+    "sex": "male",
+    "stage": "adult",
+    "method": "field recording",
+    "url": "//xeno-canto.org/694038",
+    "file": "//xeno-canto.org/694038/download",
+    "file-name": "XC694038-211223_02Carrizo variacións dunha frase bastante stereotipada siteD 9.30 Sisalde.mp3",
+    "sono": {
+        "small": "//xeno-canto.org/sounds/spectrograms/LHCOINSOBZ/694038/grey-small.png",
+        "med": "//xeno-canto.org/sounds/spectrograms/LHCOINSOBZ/694038/grey-medium.png",
+        "large": "//xeno-canto.org/sounds/spectrograms/LHCOINSOBZ/694038/colour.png",
+        "full": ""
+    },
+    "osci": {
+        "small": "",
+        "med": "",
+        "large": ""
+    },
+    "lic": "//creativecommons.org/licenses/by-nc-sa/4.0/",
+    "q": "A",
+    "length": "4:08",
+    "time": "09:30",
+    "date": "2021-12-23",
+    "uploaded": "2021-12-27",
+    "also": [
+        "Turdus viscivorus",
+        "Turdus iliacus",
+        "Parus major"
+    ],
+    "rmk": "A male repeat a stereotyped phrase with few syllabic variation. HPF 270 Hz. It´s raining.",
+    "animal-seen": "yes",
+    "playback-used": "no",
+    "temp": "",
+    "regnr": "",
+    "auto": "unknown",
+    "dvc": "",
+    "mic": "",
+    "smp": "44100",
+    "annotation-set": {
+        "set_name": "Annotation set for XC694038",
+        "set_creator": "W.P. Vellinga",
+        "set_creation_date": "2026-03-18 00:00:00",
+        "set_remarks": "Metadata of the original set is provided for each individual annotation",
+        "annotations": [
+            {
+                "annotation_xc_id": 1,
+                "xc_nr": "694038",
+                "scientific_name": "Troglodytes troglodytes",
+                "annotator": "W.P. Vellinga",
+                "start_time": 0.27,
+                "end_time": 3.33,
+                "frequency_high": 10204,
+                "frequency_low": 2551,
+                "sound_type": "song",
+                "sex": "male",
+                "life_stage": "adult",
+                "annotation_remarks": "audible rain drops",
+                "original_set_metadata": {
+                    "set_name": "Demonstration set",
+                    "set_creator": "W.P. Vellinga",
+                    "set_owner": "W.P. Vellinga",
+                    "set_license": "CC-BY-NC-4.0",
+                    "set_uri": "//xeno-canto.org/annotation/set/1",
+                    "set_creation_date": "2026-03-01 00:00:00"
+                }
+            },
+            {
+                "annotation_xc_id": 2,
+                "xc_nr": "694038",
+                "scientific_name": "Troglodytes troglodytes",
+                "annotator": "W.P. Vellinga",
+                "start_time": 7.65,
+                "end_time": 10.28,
+                "frequency_high": 9962,
+                "frequency_low": 2278,
+                "sound_type": "song",
+                "sex": "male",
+                "life_stage": "adult",
+                "annotation_remarks": "rain drops",
+                "original_set_metadata": {
+                    "set_name": "Demonstration set",
+                    "set_creator": "W.P. Vellinga",
+                    "set_owner": "W.P. Vellinga",
+                    "set_license": "CC-BY-NC-4.0",
+                    "set_uri": "//xeno-canto.org/annotation/set/1",
+                    "set_creation_date": "2026-03-01 00:00:00"
+                }
+            },
+            {
+                "annotation_xc_id": 3,
+                "xc_nr": "694038",
+                "scientific_name": "Periparus ater",
+                "annotator": "W.P. Vellinga",
+                "start_time": 10.28,
+                "end_time": 11.92,
+                "frequency_high": 6651,
+                "frequency_low": 3675,
+                "sound_type": "song",
+                "sex": null,
+                "life_stage": null,
+                "annotation_remarks": "rain drops",
+                "original_set_metadata": {
+                    "set_name": "Demonstration set",
+                    "set_creator": "W.P. Vellinga",
+                    "set_owner": "W.P. Vellinga",
+                    "set_license": "CC-BY-NC-4.0",
+                    "set_uri": "//xeno-canto.org/annotation/set/1",
+                    "set_creation_date": "2026-03-01 00:00:00"
+                }
+            }
+        ]
+    }
+}

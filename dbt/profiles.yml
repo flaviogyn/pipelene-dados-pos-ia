@@ -1,0 +1,37 @@
+pipelene_dbt:
+  target: "{{ env_var('DBT_TARGET', 'dev_snowflake') }}"
+  outputs:
+    # 1. PostgreSQL Connection
+    # dev_postgres:
+    #   type: postgres
+    #   host: "{{ env_var('DBT_POSTGRES_HOST', 'localhost') }}"
+    #   port: {{ env_var('DBT_POSTGRES_PORT', '5432') | int }}
+    #   user: "{{ env_var('DBT_POSTGRES_USER', 'postgres') }}"
+    #   password: "{{ env_var('DBT_POSTGRES_PASSWORD', 'postgres') }}"
+    #   dbname: "{{ env_var('DBT_POSTGRES_DBNAME', 'postgres') }}"
+    #   schema: "{{ env_var('DBT_POSTGRES_SCHEMA', 'public') }}"
+    #   threads: 4
+
+    # 2. Snowflake Connection
+    dev_snowflake:
+      type: snowflake
+      account: "{{ env_var('DBT_SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('DBT_SNOWFLAKE_USER') }}"
+      password: "{{ env_var('DBT_SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('DBT_SNOWFLAKE_ROLE') }}"
+      database: "{{ env_var('DBT_SNOWFLAKE_DATABASE') }}"
+      warehouse: "{{ env_var('DBT_SNOWFLAKE_WAREHOUSE') }}"
+      schema: "{{ env_var('DBT_SNOWFLAKE_SCHEMA') }}"
+      threads: 4
+
+    # 3. Oracle 19c Connection (using Thin Mode)
+    # dev_oracle:
+    #   type: oracle
+    #   host: "{{ env_var('DBT_ORACLE_HOST', 'localhost') }}"
+    #   port: {{ env_var('DBT_ORACLE_PORT', '1521') | int }}
+    #   user: "{{ env_var('DBT_ORACLE_USER') }}"
+    #   password: "{{ env_var('DBT_ORACLE_PASSWORD') }}"
+    #   dbname: "{{ env_var('DBT_ORACLE_DBNAME', 'ORCL') }}" # Service Name or SID
+    #   schema: "{{ env_var('DBT_ORACLE_SCHEMA') }}"
+    #   threads: 4
+

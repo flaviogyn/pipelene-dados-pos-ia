@@ -1,0 +1,23 @@
+services:
+  dbt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pipelene-dbt:latest
+    container_name: pipelene_dbt
+    working_dir: /usr/app
+    environment:
+      DBT_PROFILES_DIR: /usr/app
+      DBT_TARGET: ${DBT_TARGET:-dev_snowflake}
+      DBT_SNOWFLAKE_ACCOUNT: ${DBT_SNOWFLAKE_ACCOUNT:-}
+      DBT_SNOWFLAKE_USER: ${DBT_SNOWFLAKE_USER:-}
+      DBT_SNOWFLAKE_PASSWORD: ${DBT_SNOWFLAKE_PASSWORD:-}
+      DBT_SNOWFLAKE_ROLE: ${DBT_SNOWFLAKE_ROLE:-}
+      DBT_SNOWFLAKE_DATABASE: ${DBT_SNOWFLAKE_DATABASE:-}
+      DBT_SNOWFLAKE_WAREHOUSE: ${DBT_SNOWFLAKE_WAREHOUSE:-}
+      DBT_SNOWFLAKE_SCHEMA: ${DBT_SNOWFLAKE_SCHEMA:-}
+    volumes:
+      - .:/usr/app
+      - ../s3:/workspace/s3
+    entrypoint: ["dbt"]
+    command: ["debug", "--target", "${DBT_TARGET:-dev_snowflake}"]

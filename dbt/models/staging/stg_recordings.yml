@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_recordings
+    description: >
+      Uma linha por gravação do Xeno-canto, com os campos do VARIANT
+      da bronze já convertidos para tipos apropriados (float, date, int, etc).
+    columns:
+      - name: recording_id
+        description: "ID da gravação no Xeno-canto (chave natural)."
+        tests:
+          - not_null
+          - unique
+
+      - name: species
+        description: "Epíteto específico (ex: 'sulphuratus')."
+        tests:
+          - not_null
+
+      - name: genus
+        description: "Gênero taxonômico (ex: 'Pitangus')."
+        tests:
+          - not_null
+
+      - name: latitude
+        description: "Latitude do local de gravação, em graus decimais."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -90
+              max_value: 90
+              config:
+                severity: warn
+
+      - name: longitude
+        description: "Longitude do local de gravação, em graus decimais."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -180
+              max_value: 180
+              config:
+                severity: warn
+
+      - name: quality_rating
+        description: "Nota de qualidade atribuída pela comunidade Xeno-canto (A a E)."
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D', 'E']
+              config:
+                severity: warn

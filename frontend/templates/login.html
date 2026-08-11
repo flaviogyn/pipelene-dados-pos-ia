@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DAG Manager — Login</title>
+  <meta name="description" content="Acesse o DAG Manager para gerenciar seus arquivos Python no DigitalOcean." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-card: #131a2e;
+      --border: #1e2d4a;
+      --border-hover: #2d4a80;
+      --accent: #0ea5e9;
+      --accent-2: #6366f1;
+      --accent-grad: linear-gradient(135deg, #0ea5e9, #6366f1);
+      --text-primary: #e8eaf0;
+      --text-secondary: #8892a4;
+      --text-muted: #4a5568;
+      --error: #ef4444;
+      --shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --transition: 0.2s ease;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image:
+        radial-gradient(ellipse at 15% 10%, rgba(14, 165, 233, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 90%, rgba(99, 102, 241, 0.12) 0%, transparent 50%);
+    }
+
+    /* Partículas de fundo */
+    .bg-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    .bg-orb-1 { width: 400px; height: 400px; background: #0ea5e9; top: -100px; left: -100px; }
+    .bg-orb-2 { width: 350px; height: 350px; background: #6366f1; bottom: -100px; right: -100px; }
+
+    /* Card de login */
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      padding: 48px 40px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      position: relative;
+      z-index: 1;
+      animation: slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Logo */
+    .login-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 36px;
+    }
+    .logo-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--accent-grad);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      margin-bottom: 16px;
+      box-shadow: 0 0 40px rgba(14, 165, 233, 0.3);
+      animation: pulse 3s ease-in-out infinite;
+    }
+    .login-logo h1 {
+      font-size: 22px;
+      font-weight: 700;
+      background: var(--accent-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .login-logo p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-family: monospace;
+    }
+
+    /* Formulário */
+    .form-group {
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 13px 14px 13px 42px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+    }
+    input:focus {
+      border-color: var(--accent);
+      background: rgba(14, 165, 233, 0.06);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+    }
+    input::placeholder { color: var(--text-muted); }
+
+    /* Mostrar senha */
+    .toggle-password {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px;
+      transition: color var(--transition);
+    }
+    .toggle-password:hover { color: var(--accent); }
+
+    /* Mensagem de erro */
+    .alert-error {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #ef4444;
+      margin-bottom: 18px;
+      animation: shake 0.4s ease;
+    }
+
+    /* Botão */
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      margin-top: 8px;
+      background: var(--accent-grad);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+      box-shadow: 0 4px 20px rgba(14, 165, 233, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-login:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 8px 30px rgba(14, 165, 233, 0.4); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1));
+    }
+
+    /* Footer */
+    .login-footer {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Animations */
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(14, 165, 233, 0.3); }
+      50%       { box-shadow: 0 0 50px rgba(14, 165, 233, 0.5); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+
+<div class="login-card">
+  <div class="login-logo">
+    <div class="logo-icon">🐍</div>
+    <h1>DAG Manager</h1>
+    <p>/root/dags — DigitalOcean</p>
+  </div>
+
+  {% if error %}
+  <div class="alert-error" role="alert">
+    ⚠ {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('login') }}" autocomplete="off">
+    <div class="form-group">
+      <label for="username">Usuário</label>
+      <div class="input-wrap">
+        <span class="input-icon">👤</span>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="Digite seu usuário"
+          value="{{ request.form.get('username', '') }}"
+          required
+          autofocus
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Senha</label>
+      <div class="input-wrap">
+        <span class="input-icon">🔒</span>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Digite sua senha"
+          required
+        />
+        <button type="button" class="toggle-password" id="toggle-pwd" title="Mostrar/ocultar senha" aria-label="Mostrar senha">👁</button>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-login">Entrar</button>
+  </form>
+
+  <p class="login-footer">DAG Manager &mdash; DigitalOcean Droplet</p>
+</div>
+
+<script>
+  const toggleBtn = document.getElementById('toggle-pwd');
+  const pwdInput  = document.getElementById('password');
+  toggleBtn.addEventListener('click', () => {
+    const isHidden = pwdInput.type === 'password';
+    pwdInput.type = isHidden ? 'text' : 'password';
+    toggleBtn.textContent = isHidden ? '🙈' : '👁';
+    toggleBtn.setAttribute('aria-label', isHidden ? 'Ocultar senha' : 'Mostrar senha');
+  });
+</script>
+</body>
+</html>
