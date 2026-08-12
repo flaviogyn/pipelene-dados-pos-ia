@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: dim_species
+    description: "Dimensão de espécies observadas, com flag de espécie-alvo."
+    columns:
+      - name: species_key
+        tests:
+          - not_null
+          - unique
+      - name: is_target_species
+        tests:
+          - not_null
+
+  - name: fct_recordings
+    description: >
+      Fato principal: uma linha por gravação, metadados + features
+      acústicas + label de classificação binária, direto da silver.
+      Fonte para o Metabase e para exportação do dataset de treino do modelo.
+    columns:
+      - name: recording_id
+        tests:
+          - not_null
+          - unique
+      - name: is_target_species
+        description: "Label do classificador binário: espécie-alvo vs. todas as outras."
+        tests:
+          - not_null
+      - name: quality_rating
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C', 'D', 'E']
+              config:
+                severity: warn

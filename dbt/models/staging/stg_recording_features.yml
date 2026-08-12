@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: stg_recording_features
+    description: >
+      Uma linha por gravação com metadados e features acústicas
+      (librosa) já tipados, prontos para alimentar a gold diretamente
+      (sem join -- metadados e features vêm juntos no mesmo parquet).
+    columns:
+      - name: recording_id
+        description: "ID da gravação (chave de join com fct_recordings.recording_id na camada gold)."
+        tests:
+          - not_null
+          - unique
+
+      - name: mfcc_1_mean
+        description: "Média do 1º coeficiente MFCC -- feature central pro classificador."
+        tests:
+          - not_null

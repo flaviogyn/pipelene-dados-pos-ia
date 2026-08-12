@@ -50,11 +50,10 @@
 ---
 x-airflow-common:
   &airflow-common
-  # Para adicionar dependências customizadas ou atualizar providers, comente a
-  # linha "image", coloque um Dockerfile no diretório deste docker-compose.yaml
-  # e descomente a linha "build". Depois rode `docker compose build`.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.1}
-  # build: .
+  # Imagem customizada com as dependencias Python listadas em requirements.txt.
+  # Depois de alterar requirements.txt, rode `docker compose build`.
+  image: ${AIRFLOW_IMAGE_NAME:-pipelene-airflow:3.1.1}
+  build: .
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -296,7 +295,7 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
-      _PIP_ADDITIONAL_REQUIREMENTS: ''
+      _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources

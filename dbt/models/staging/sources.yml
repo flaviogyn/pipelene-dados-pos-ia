@@ -4,24 +4,23 @@ sources:
   - name: xeno_raw
     database: XENO_DB
     schema: RAW
-    description: "Camada bronze/raw: dados carregados direto do S3 via Stage do Snowflake."
+    description: "Camada raw: dado carregado direto do S3 via Stage do Snowflake."
     tables:
       - name: users
         description: "Tabela de usuários (já existente no schema RAW)."
 
-      - name: src_recordings
+      - name: src_recording_features
         description: >
-          Dado bruto (VARIANT) das gravações do Xeno-canto, carregado
-          via COPY INTO a partir do stage @XENO_DB.RAW.S3_STAGE
-          (arquivos bird-sp-*.json em s3://xeno-canto-s3/bronze/).
-          Esta é a tabela bronze -- não confundir com o modelo dbt
-          stg_recordings, que é a VIEW de staging derivada dela.
+          Camada silver: uma linha por gravação, já com metadados
+          (nome popular, país, localização, qualidade, url, data, tipo
+          de vocalização) e features acústicas (MFCCs, RMS, ZCR,
+          spectral centroid/bandwidth) extraídas via librosa, tudo no
+          mesmo arquivo. Carregada via COPY INTO MATCH_BY_COLUMN_NAME
+          a partir do stage @XENO_DB.RAW.S3_STAGE_SILVER
+          (arquivos <recording_id>.parquet em s3://xeno-canto-s3/silver/).
         columns:
-          - name: raw_data
-            description: "Payload JSON completo de uma gravação, como VARIANT."
+          - name: id
+            description: "ID da gravação."
             tests:
               - not_null
-          - name: file_name
-            description: "Nome do arquivo de origem no S3 (METADATA$FILENAME)."
-          - name: loaded_at
-            description: "Timestamp de carga na bronze (default CURRENT_TIMESTAMP())."
+              - unique

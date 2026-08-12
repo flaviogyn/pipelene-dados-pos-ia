@@ -59,6 +59,13 @@ EOF
 
 ## 6. Inicializar o Airflow
 
+Como este projeto usa uma imagem customizada para incluir dependencias Python
+do Airflow, construa a imagem antes de inicializar:
+
+```bash
+docker compose build
+```
+
 ```bash
 docker compose up airflow-init
 ```
@@ -215,3 +222,12 @@ docker compose up -d airflow-worker
 
 ![alt text](image-2.png)
 
+8. Dependencias Python do Airflow
+
+As bibliotecas Python usadas pelas DAGs devem ser adicionadas em
+`requirements.txt` e instaladas via imagem customizada:
+
+```bash
+docker compose build
+docker compose up -d
+```

@@ -145,3 +145,12 @@ Utilizado para integração e carregamento de dados (stages).
 * `AWS_SESSION_TOKEN`: Preencha **apenas** se você utiliza credenciais temporárias via MFA ou AWS STS. Pode deixar em branco se usar chaves de longa duração.
 
 ⚠️ **IMPORTANTE:** Nunca comite o arquivo `.env` modificado. Ele já está listado no `.gitignore` para garantir a segurança das credenciais.
+
+### Dependencias de packages Python
+
+```bash
+docker compose run --rm dbt deps
+```
+
+Ele cria/atualiza a pasta dbt_packages/ dentro do projeto com o dbt_utils.
+Se o Airflow chama o dbt remotamente via SSH, depois disso a DAG já deve conseguir executar o modelo que usa dbt_utils.

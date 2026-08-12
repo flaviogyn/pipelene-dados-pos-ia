@@ -16,19 +16,17 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
-# models:
-#   pipelene_dbt:
-#     # By default, models will be materialized as views.
-#     # Can be overridden in schema files or model configurations.
-#     +materialized: view
+# Espécie-alvo do classificador binário (target vs. all).
+# Usada em dim_species.sql e fct_recordings.sql.
+vars:
+  target_genus: 'Pitangus'
+  target_species: 'sulphuratus'
 
 models:
   pipelene_dbt:
     staging:
-      +materialized: view # staging vira VIEW (leve, sempre lê o dado atual)
+      +materialized: view   # staging vira VIEW (leve, sempre lê o dado atual)
       +schema: staging
     marts:
-      +materialized: table # marts viram TABLE (materializada, rápida de consultar)
-      +schema: marts
-      # +schema: XENO_DB
-
+      +materialized: table  # marts (gold) viram TABLE (materializada, rápida pro Metabase)
+      +schema: gold          # <-- corrigido: era 'XENO_DB' (nome do database, não schema)

@@ -1,8 +1,0 @@
-version: 2
-
-sources:
-  - name: xeno_raw
-    database: XENO_DB
-    schema: RAW
-    tables:
-      - name: users
