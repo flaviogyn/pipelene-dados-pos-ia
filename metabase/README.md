@@ -9,12 +9,26 @@ Este diretório prepara o Metabase para rodar com Docker usando o banco interno 
 
 ## Estrutura
 
+```bash
+IP: 142.93.249.68
+```
+
 ```text
 metabase/
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
+
+## Copiar o script do Windows para a VPS
+
+No PowerShell, execute a partir da raiz do projeto:
+
+```powershell
+scp docker-compose.yml root@<IP>:/root
+```
+
+Substitua `IP` pelo IP da VPS.
 
 ## Como usar
 
@@ -33,7 +47,7 @@ docker compose up -d
 3. Acesse o Metabase em:
 
 ```text
-http://localhost:3000
+http://142.93.249.68:3000
 ```
 
 4. Para parar o container:
@@ -67,3 +81,30 @@ O arquivo `.env` pode conter apenas:
 ```env
 MB_PORT=3000
 ```
+
+## Setup do Metabase
+
+1. Passo acesse a URL e clique em Let's get started
+
+```bash
+http://142.93.249.68:3000/setup
+```
+
+![alt text](image.png)
+
+2. Crie usuário e senha
+
+![alt text](image-1.png)
+
+3. Escolher idioma e continuar com exemplos
+
+![alt text](image-2.png)
+
+4. Preferências de uso
+
+![alt text](image-3.png)
+
+5. Confirme
+
+![alt text](image-4.png)
+

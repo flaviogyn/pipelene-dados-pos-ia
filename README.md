@@ -13,3 +13,7 @@
 - Transformar as dags em funções Python
 - Adicionar mais testes
 
+## Arquitetura Cloud do Projeto
+
+![alt text](image.png)
+
