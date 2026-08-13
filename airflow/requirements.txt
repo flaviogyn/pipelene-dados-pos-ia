@@ -2,3 +2,6 @@ pandas
 librosa
 soundfile
 pyarrow
+numpy
+tensorflow
+scikit-learn
