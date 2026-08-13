@@ -28,6 +28,20 @@ CREATE OR REPLACE STAGE XENO_DB.RAW.S3_STAGE_SILVER
     )
     FILE_FORMAT = (TYPE = PARQUET);
 
+-- ------------------------------------------------------------
+-- 2b. Stage de SAÍDA: usado pra exportar o resultado da gold
+--     de volta pro S3 (unload), pasta gold/. Mesmo bucket,
+--     credenciais de escrita.
+-- ------------------------------------------------------------
+CREATE OR REPLACE STAGE XENO_DB.RAW.S3_STAGE_GOLD
+    URL = 's3://xeno-canto-s3/gold/'
+    CREDENTIALS = (
+        AWS_KEY_ID = 'SUA_KEY'
+        AWS_SECRET_KEY = 'SEU_SECRET'
+    )
+    FILE_FORMAT = (TYPE = PARQUET);
+ 
+
 -- Sanity check: lista o que o Snowflake enxerga no bucket
 -- (confirma que a credencial e o path estão corretos antes do COPY INTO)
 LIST @XENO_DB.RAW.S3_STAGE_SILVER;

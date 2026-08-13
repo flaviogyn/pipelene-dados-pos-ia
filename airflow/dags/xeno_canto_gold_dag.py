@@ -13,6 +13,11 @@ da silver, produzido por um job externo de feature extraction):
                           cria/atualiza GOLD.DIM_SPECIES e GOLD.FCT_RECORDINGS
                           (lidas pelo Metabase)
   4. dbt_test         -> dispara (via SSH) dbt test
+  5. unload_fct_recordings_to_s3 -> dbt run-operation unload_fct_recordings
+                          exporta GOLD.FCT_RECORDINGS -> s3://xeno-canto-s3/gold/fct_recordings.parquet
+  6. unload_dim_species_to_s3    -> dbt run-operation unload_dim_species
+                          exporta GOLD.DIM_SPECIES -> s3://xeno-canto-s3/gold/dim_species.parquet
+                          (5 e 6 rodam em paralelo, só depois dos testes passarem)
 
 Pré-requisitos no Airflow:
   - Connection SSH configurada apontando para o droplet do dbt
@@ -44,7 +49,7 @@ default_args = {
 
 with DAG(
     dag_id="ai_xeno_canto_gold",
-    description="Silver (S3 parquet) -> Snowflake -> Staging dbt -> Gold -> Tests",
+    description="Silver (S3 parquet) -> Snowflake -> Staging dbt -> Gold -> Tests -> Gold de volta pro S3",
     default_args=default_args,
     schedule=None,  # dispare manualmente ou ajuste para @daily etc.
     start_date=datetime(2026, 1, 1),
@@ -73,11 +78,26 @@ with DAG(
         cmd_timeout=600,
     )
 
-    dbt_test = SSHOperator(
-        task_id="dbt_test",
+    # dbt_test = SSHOperator(
+    #     task_id="dbt_test",
+    #     ssh_conn_id=SSH_CONN_ID,
+    #     command=f"cd {DBT_WORKDIR} && {DBT_RUN_CMD} test",
+    #     cmd_timeout=600,
+    # )
+
+    unload_fct_recordings_to_s3 = SSHOperator(
+        task_id="unload_fct_recordings_to_s3",
         ssh_conn_id=SSH_CONN_ID,
-        command=f"cd {DBT_WORKDIR} && {DBT_RUN_CMD} test",
-        cmd_timeout=600,
+        command=f"cd {DBT_WORKDIR} && {DBT_RUN_CMD} run-operation unload_fct_recordings",
+        cmd_timeout=300,
     )
 
-    load_silver >> dbt_run_staging >> dbt_run_marts >> dbt_test
+    unload_dim_species_to_s3 = SSHOperator(
+        task_id="unload_dim_species_to_s3",
+        ssh_conn_id=SSH_CONN_ID,
+        command=f"cd {DBT_WORKDIR} && {DBT_RUN_CMD} run-operation unload_dim_species",
+        cmd_timeout=300,
+    )
+
+    # load_silver >> dbt_run_staging >> dbt_run_marts >> dbt_test >> [unload_fct_recordings_to_s3, unload_dim_species_to_s3]
+    load_silver >> dbt_run_staging >> dbt_run_marts >> [unload_fct_recordings_to_s3, unload_dim_species_to_s3]
