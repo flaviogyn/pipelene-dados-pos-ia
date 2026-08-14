@@ -94,17 +94,64 @@ http://142.93.249.68:3000/setup
 
 2. Crie usuário e senha
 
-![alt text](image-1.png)
+![alt text](image-5.png)
 
-3. Escolher idioma e continuar com exemplos
+3. Qual uso Metabase
 
-![alt text](image-2.png)
+![alt text](image-6.png)
+
+3. Continuar com exemplos
+
+![alt text](image-7.png)
 
 4. Preferências de uso
 
-![alt text](image-3.png)
+![alt text](image-8.png)
 
 5. Confirme
 
 ![alt text](image-4.png)
 
+## Criando Conexação Snowflake
+
+Acesse bando de dados
+
+![alt text](image-9.png)
+
+Adicionar um banco de dados 
+
+![alt text](image-10.png)
+
+Preencha as váriaveis de conexão
+
+![alt text](image-11.png)
+
+![alt text](image-12.png)
+
+## Passo a Passo da Instalando Mapa do Brasil
+
+Acesse as Configurações: 
+
+* Clique no ícone de engrenagem ou de grade no canto superior direito e vá em Administração (Admin).
+
+* Vá na aba Mapas: No menu lateral esquerdo, selecione a opção Mapas e depois clique em Adicionar um mapa.
+
+* Preencha os Campos:
+  
+  * Nome: Digite um nome claro, como Brasil - Estados.URL do GeoJSON: [Insira o link direto para o arquivo de dados geográficos](https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson). 
+  
+  * Identificador da região (Region Identifier): 
+    Defina a propriedade do JSON que contém a sigla ou código do estado (por exemplo, name, sigla ou cartodb_id dependendo do arquivo).
+  
+  * Nome da região (Region Name): 
+    Selecione a propriedade que guarda o nome completo (por exemplo, name).
+  
+  * Salvar: Clique em Adicionar mapa para concluir
+
+  ![](image-13.png)
+
+  ![alt text](image-14.png)
+
+  ![alt text](image-15.png)
+  
+  

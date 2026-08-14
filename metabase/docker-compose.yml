@@ -2,38 +2,26 @@ services:
   metabase:
     image: metabase/metabase:latest
     container_name: metabase
-    ports:
-      - "${MB_PORT:-3000}:3000"
-    environment:
-      MB_JETTY_HOST: 0.0.0.0
-      MB_ENABLE_QUERY_CACHING: true
-      MB_DB_FILE: /metabase-data/metabase.db
-      MB_ADMIN_EMAIL: flaviogyn@gmail.com
-      MB_SETUP_TOKEN: 11111111-1111-1111-1111-111111111111
-      MB_PASSWORD_COMPLEXITY: normal
-      MB_PASSWORD_LENGTH: 8
-    volumes:
-      - metabase_data:/metabase-data
     restart: unless-stopped
 
-  metabase-setup:
-    image: curlimages/curl:latest
-    container_name: metabase-setup
-    depends_on:
-      - metabase
-    command:
-      - sh
-      - -c
-      - |
-        until curl -fsS http://metabase:3000/api/health >/dev/null; do
-          sleep 2
-        done
+    ports:
+      - "${MB_PORT:-3000}:3000"
 
-        curl -fsS -X POST http://metabase:3000/api/setup \
-          -H "Content-Type: application/json" \
-          -d '{"token":"11111111-1111-1111-1111-111111111111","user":{"email":"flaviogyn@gmail.com","first_name":"Flavio","last_name":"Admin","password":"Senha@123"},"prefs":{"allow_tracking":false,"site_name":"Metabase"}}' \
-          || true
-    restart: "no"
+    environment:
+      MB_DB_TYPE: h2
+      MB_DB_FILE: /metabase-data/metabase.db
+      MB_PASSWORD_COMPLEXITY: normal
+      MB_PASSWORD_LENGTH: 8
+
+    volumes:
+      - metabase_data:/metabase-data
+
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "-I", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
 volumes:
   metabase_data:
