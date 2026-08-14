@@ -196,7 +196,7 @@ def ai_xeno_canto_silver():
         metadados = json.loads(hook.read_key(key=gravacao["metadata"], bucket_name=s3_bucket))
 
         # Criação do dataframe para este arquivo de áudio
-        colunas = ["id", "gen", "sp", "ssp", "lat", "lon", "alt", "grp"]
+        colunas = ["id", "gen", "sp", "ssp", "en", "status", "cnt", "loc", "q", "url", "date", "type", "lat", "lon", "alt", "grp"]
         registro = {chave: metadados[chave] for chave in colunas}
         registro |= audio_features
         df = pd.DataFrame([registro])
