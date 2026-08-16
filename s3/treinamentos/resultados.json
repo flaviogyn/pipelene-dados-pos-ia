@@ -1,0 +1,1 @@
+{"biblioteca": {"perda": 0.22480405867099762, "modelo": "treinamentos/modelo.keras", "taxa_acerto": 0.9121338725090027}, "hardcode": {"perda": 0.6486433744430542, "modelo": "treinamentos/modelo_hardcode.npz", "taxa_acerto": 0.6527196652719666}}
