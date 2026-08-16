@@ -3,18 +3,19 @@
 
 Esta DAG faz download de dados da base do Xeno-Canto para o S3 
 """
-from airflow.sdk import Asset, dag, task
-from pendulum import datetime
+from airflow.sdk import dag, task, Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.exceptions import AirflowConfigException
-from airflow.sdk import Variable
+from airflow.exceptions import AirflowConfigException, AirflowException
+
+from pendulum import datetime
+import pendulum
+
 import io
 import json
 import requests
 import logging
 import re
 import os
-import pendulum
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ def ai_xeno_canto_bronze():
         # Aqui faz a requisição da lista de arquivos com
         # as gravações de audio.
         url = "https://xeno-canto.org/api/3/recordings"
-        params = {"query": query, "key": xeno_key}
+        params = {"query": query, "key": xeno_key, "per_page": 500}
 
         response = requests.get(url, params=params)
         response.raise_for_status()
