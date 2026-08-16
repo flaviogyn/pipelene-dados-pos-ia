@@ -31,3 +31,15 @@
 
 ![alt text](image-6.png)
 
+## Execuções Airflow
+
+Camada Bronze
+
+Camada Silver
+
+Camada Gold
+ 
+![alt text](image-7.png)
+
+Camada Treinamento
+

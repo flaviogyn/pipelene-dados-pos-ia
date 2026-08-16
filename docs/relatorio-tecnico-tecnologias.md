@@ -2,75 +2,178 @@
 
 Projeto: `pipelene-dados-pos-ia`
 
+Ultima atualizacao deste relatorio: 2026-08-16.
+
 Escopo analisado: `airflow/`, `dbt/`, `docker/`, `metabase/`, `snowflake/` e `s3/`.
 
 ## 1. Visao geral da arquitetura
 
-O projeto implementa um pipeline de dados e IA para gravacoes da base Xeno-Canto. A arquitetura segue uma divisao em camadas:
+O projeto implementa um pipeline de dados e IA para gravacoes da base Xeno-Canto. A arquitetura usa um desenho em camadas:
 
-- `S3`: armazenamento em zonas bronze, silver e gold.
-- `Airflow`: orquestracao dos processos de ingestao, tratamento, execucao dbt e treinamento de modelo.
-- `dbt`: transformacoes analiticas sobre Snowflake, com modelos de staging e marts.
-- `Snowflake`: data warehouse central, com stages para leitura/escrita no S3 e tabelas tipadas para dados processados.
-- `Metabase`: camada de visualizacao e BI conectada ao Snowflake.
-- `Docker`: empacotamento e padronizacao dos ambientes de Airflow, dbt e Metabase.
+- `S3`: data lake com zonas bronze, silver e gold.
+- `Airflow`: orquestracao das etapas de ingestao, processamento, transformacao e treinamento.
+- `dbt`: transformacoes SQL, carga controlada da silver no Snowflake e publicacao da gold.
+- `Snowflake`: data warehouse central, com stages externos para ler e escrever no S3.
+- `Metabase`: camada de BI e visualizacao sobre os dados finais.
+- `Docker`: empacotamento dos ambientes de Airflow, dbt e Metabase.
 
-O fluxo principal pode ser descrito como:
+Tambem ha uma pasta `docs/` com materiais visuais e referencias de arquitetura, incluindo `Data Pipeline & Analytics Architecture.jpg`, alem deste relatorio.
 
-1. Airflow consulta a API Xeno-Canto e grava arquivos brutos no S3 bronze.
-2. Airflow processa audios com `librosa`, extrai features acusticas e grava Parquet no S3 silver.
-3. Airflow aciona remotamente o dbt via SSH.
-4. dbt executa macro de carga da silver para o Snowflake RAW.
-5. dbt cria uma view de staging e tabelas gold.
-6. dbt exporta tabelas gold de volta para S3.
-7. Metabase consome o Snowflake para dashboards e analises.
-8. Airflow tambem possui DAG de treinamento de modelos usando dados gold.
+Fluxo tecnico principal:
+
+1. Airflow consulta a API Xeno-Canto.
+2. Airflow grava JSONs de consulta, audios e metadados na camada bronze do S3.
+3. Airflow processa os audios com `librosa` e gera Parquets por gravacao na camada silver.
+4. Airflow aciona dbt remotamente via SSH.
+5. dbt executa macro de `MERGE` da silver para uma tabela RAW no Snowflake.
+6. dbt cria view de staging e tabelas marts/gold.
+7. dbt exporta tabelas gold para S3.
+8. Metabase consome as tabelas do Snowflake e possui painel Xeno-Canto documentado.
+9. Airflow usa `gold/fct_recordings.parquet` para treinamento de modelos.
 
 ## 2. Airflow
 
 ### Papel no projeto
 
-O Airflow e usado como orquestrador do pipeline. Ele coordena ingestao, processamento, transformacao e treinamento. A configuracao em `airflow/docker-compose.yml` utiliza Airflow 3.1.1 com `CeleryExecutor`, PostgreSQL como metastore e Redis como broker.
+O Airflow e o orquestrador principal. Ele coordena chamadas externas, leitura e escrita em S3, processamento de audio, execucao remota do dbt e treinamento de modelos.
 
-### Componentes Docker
+A configuracao em `airflow/docker-compose.yml` usa Airflow 3.1.1 com `CeleryExecutor`, PostgreSQL como metastore e Redis como broker. A imagem e customizada em `airflow/Dockerfile`, a partir de `apache/airflow:3.1.1`, instalando as dependencias de `airflow/requirements.txt`.
 
-O compose define os seguintes servicos:
+### Componentes Docker do Airflow
+
+O compose define:
 
 - `postgres`: banco de metadados do Airflow.
 - `redis`: broker do Celery.
-- `airflow-apiserver`: interface/API do Airflow na porta 8080.
-- `airflow-scheduler`: agendamento e controle das DAGs.
-- `airflow-worker`: execucao distribuida das tasks Celery.
-- `airflow-triggerer`: suporte a execucoes assicronas.
+- `airflow-apiserver`: API/interface na porta 8080.
+- `airflow-scheduler`: agendamento.
+- `airflow-worker`: execucao das tasks.
+- `airflow-triggerer`: suporte a triggers.
 - `airflow-dag-processor`: processamento de DAGs.
-- `airflow-init`: inicializacao, migracao do banco e criacao do usuario.
-- `flower`: monitoramento opcional do Celery.
+- `airflow-init`: migracao/inicializacao.
+- `flower`: monitoramento opcional dos workers.
 
-A imagem e customizada em `airflow/Dockerfile`, partindo de `apache/airflow:3.1.1` e instalando dependencias listadas em `airflow/requirements.txt`.
+O worker monta uma chave SSH em `/home/airflow/.ssh/airflow_to_dbt`, usada pelas DAGs que chamam dbt em outra VPS.
 
-### Dependencias usadas
+### Dependencias
 
-O Airflow inclui bibliotecas de processamento e ML:
+`airflow/requirements.txt` inclui:
 
-- `pandas`: manipulacao tabular.
-- `librosa` e `soundfile`: leitura de audio e extracao de features.
-- `pyarrow`: escrita de arquivos Parquet.
-- `numpy`: calculos numericos.
-- `tensorflow` e `scikit-learn`: treinamento de modelos.
+- `pandas`
+- `librosa`
+- `soundfile`
+- `pyarrow`
+- `numpy`
+- `tensorflow`
+- `scikit-learn`
 
-### DAGs principais
+Essas bibliotecas permitem transformar audio em features, criar arquivos Parquet e treinar modelos.
 
-`xeno_canto_bronze_dag.py`
+### DAG bronze
 
-Responsavel pela ingestao bronze. A DAG le configuracoes do Airflow Variables, consulta a API Xeno-Canto, grava JSON de query, baixa audios e salva metadados individuais no S3. Ela usa `S3Hook` com a connection `aws_conn` e aplica Dynamic Task Mapping para paralelizar consultas e downloads.
+Arquivo: `airflow/dags/xeno_canto_bronze_dag.py`
 
-`xeno_canto_silver_dag.py`
+Responsabilidade:
 
-Responsavel pela camada silver. A DAG lista audios e metadados na bronze, baixa os audios para `/tmp`, extrai features acusticas com `librosa` e salva um Parquet por gravacao em `silver/<id>.parquet`. As features incluem duracao, energia media, RMS, zero crossing rate, centroide espectral, largura espectral e MFCCs 1 a 20 com media e desvio padrao.
+- Le a configuracao `xeno_canto_config` do Airflow Variables.
+- Para cada especie configurada, monta uma query Xeno-Canto.
+- Chama a API `https://xeno-canto.org/api/3/recordings`.
+- Usa `per_page=500`, ampliando a quantidade de resultados retornados por consulta.
+- Grava o JSON completo da consulta em `bronze/query/<query>.json`.
+- Seleciona a quantidade desejada de gravacoes por especie.
+- Baixa cada audio.
+- Grava audio em `bronze/audio/<id>.<extensao>`.
+- Grava metadado individual em `bronze/metadata/<id>.json`.
 
-`xeno_canto_gold_dag.py`
+Pontos tecnicos:
 
-Orquestra a etapa analitica. Em vez de rodar dbt no mesmo container, usa `SSHOperator` para acessar uma VPS/droplet de dbt e executar comandos Docker remotos. O fluxo definido e:
+- Usa `Dynamic Task Mapping` para paralelizar consultas e downloads.
+- Usa `S3Hook` com a connection `aws_conn`.
+- Usa pool `xeno_canto_download` para controlar concorrencia.
+- Possui retry com backoff exponencial no download.
+- Agora importa `AirflowException`, corrigindo o risco anterior de excecao nao importada.
+
+Ponto de atencao ainda existente:
+
+- As mensagens de erro ainda citam `s3_bucket` em alguns lugares, mas a variavel real usada e `S3_Bucket`.
+
+### DAG silver
+
+Arquivo: `airflow/dags/xeno_canto_silver_dag.py`
+
+Responsabilidade:
+
+- Lista arquivos em `bronze/audio/` e `bronze/metadata/`.
+- Relaciona audio e metadado pelo ID.
+- Divide as gravacoes em lotes de 10.
+- Processa cada lote com Dynamic Task Mapping.
+- Para cada gravacao, baixa o audio, extrai features, padroniza campos e salva Parquet em `silver/<id>.parquet`.
+
+Mudanca relevante observada:
+
+- A DAG deixou de mapear uma task por gravacao e passou a mapear uma task por lote.
+- Cada gravacao dentro do lote tem retry interno de ate 3 tentativas.
+- Falhas por gravacao nao derrubam necessariamente o lote inteiro.
+- Erros persistentes sao registrados em `erros/silver/<id>.json`.
+- Arquivos temporarios baixados para `/tmp` sao removidos no `finally`.
+- Datas invalidas sao convertidas para a data atual normalizada e exportadas em `YYYY-MM-DD`.
+
+Features extraidas:
+
+- `duration_seconds`
+- `energy_mean`
+- `rms_mean`
+- `rms_std`
+- `zcr_mean`
+- `zcr_std`
+- `spectral_centroid_mean`
+- `spectral_bandwidth_mean`
+- `mfcc_1_mean` ate `mfcc_20_mean`
+- `mfcc_1_std` ate `mfcc_20_std`
+
+Campos de metadados incluidos na silver:
+
+- `id`
+- `gen`
+- `sp`
+- `ssp`
+- `en`
+- `status`
+- `cnt`
+- `loc`
+- `q`
+- `url`
+- `date`
+- `type`
+- `lat`
+- `lon`
+- `alt`
+- `grp`
+
+Pontos fortes:
+
+- Melhor controle de XCom e Dynamic Task Mapping ao trabalhar com lotes.
+- Tratamento mais robusto de erros por arquivo.
+- Registro dos arquivos problematicos em uma area especifica no S3.
+- Limpeza de arquivos temporarios.
+
+Pontos de atencao:
+
+- O tamanho do lote esta fixo em 10; pode virar variavel Airflow para ajuste operacional.
+- O fallback de datas invalidas para a data atual evita falha, mas pode mascarar problema de qualidade de dado.
+
+### DAG gold/dbt
+
+Arquivo: `airflow/dags/xeno_canto_gold_dag.py`
+
+Responsabilidade:
+
+- Acionar dbt remotamente via `SSHOperator`.
+- Executar carga silver no Snowflake.
+- Rodar modelos staging e marts.
+- Exportar tabelas gold de volta ao S3.
+
+Fluxo atual:
 
 1. `dbt run-operation load_silver_features`
 2. `dbt run --select staging`
@@ -78,48 +181,61 @@ Orquestra a etapa analitica. Em vez de rodar dbt no mesmo container, usa `SSHOpe
 4. `dbt run-operation unload_fct_recordings`
 5. `dbt run-operation unload_dim_species`
 
-O teste dbt aparece comentado no arquivo, indicando uma decisao pendente ou temporaria.
+Ponto de atencao:
 
-`run_dbt_snowflake.py`
+- A task `dbt_test` existe no codigo, mas esta comentada. Assim, a DAG principal de gold ainda pode publicar dados sem executar validacoes dbt.
 
-DAG simples para executar `dbt run` e `dbt test` remotamente via SSH.
+### DAG run_dbt_snowflake
 
-`xeno_canto_treinamento.py`
+Arquivo: `airflow/dags/run_dbt_snowflake.py`
 
-Executa treinamento usando o dataset `gold/fct_recordings.parquet` no S3. Ha duas abordagens:
+DAG auxiliar para executar `dbt run` e `dbt test` via SSH no ambiente remoto do dbt. Ela continua util para validacao manual ou execucoes pontuais.
 
-- modelo com TensorFlow/Keras;
-- rede neural implementada manualmente com NumPy.
+### DAG treinamento
 
-Os artefatos sao salvos no S3 em `treinamentos/modelo.keras`, `treinamentos/modelo_hardcode.npz` e `treinamentos/resultados.json`.
+Arquivo: `airflow/dags/xeno_canto_treinamento.py`
 
-### Avaliacao tecnica
+Responsabilidade:
 
-Pontos fortes:
+- Baixa `gold/fct_recordings.parquet` do S3.
+- Treina dois modelos:
+  - TensorFlow/Keras.
+  - Rede neural implementada manualmente com NumPy.
+- Salva artefatos de modelo e resultados no S3.
 
-- Boa separacao das etapas bronze, silver, gold e treinamento.
-- Uso adequado de Dynamic Task Mapping para paralelizar downloads/processamentos.
-- Uso de Airflow Variables e Connections para parametrizacao.
-- Retentativas no download de audio, com backoff exponencial.
-- Isolamento do dbt em um ambiente remoto, reduzindo acoplamento operacional.
+Mudanca relevante observada:
 
-Pontos de atencao:
+- A coluna categorica `_COL_6` agora e transformada via `pd.get_dummies`.
+- `_COL_16` e convertida para inteiro e usada como alvo.
+- As features numericas continuam sendo selecionadas a partir de `_COL_17`.
+- As colunas dummy geradas de `_COL_6` sao adicionadas ao conjunto de entrada.
 
-- Em `xeno_canto_bronze_dag.py` e `xeno_canto_silver_dag.py` ha mensagens de erro citando `s3_bucket`, mas a variavel usada e `S3_Bucket`; isso pode confundir suporte operacional.
-- `AirflowException` e usada no bronze, mas nao aparece importada no arquivo.
-- A DAG gold esta com `dbt_test` comentado, entao o fluxo gold atual pode publicar dados sem validacao automatica.
-- A DAG de treinamento usa nomes `_COL_16`, `_COL_17...`, o que sugere dependencia de um schema de Parquet lido sem nomes de colunas esperados. Isso reduz robustez.
-- O worker monta uma chave SSH local, exigindo cuidado com permissoes e rotacao de credenciais.
+Artefatos gerados:
+
+- `treinamentos/modelo.keras`
+- `treinamentos/modelo_hardcode.npz`
+- `treinamentos/resultados.json`
+
+Ponto de atencao:
+
+- O modelo ainda depende de nomes `_COL_*`, que aparecem no Parquet gold exportado pelo Snowflake. Isso funciona com o arquivo atual, mas e menos explicito do que usar nomes semanticos de colunas.
 
 ## 3. dbt
 
 ### Papel no projeto
 
-O dbt e usado para transformar os dados carregados no Snowflake em estruturas analiticas. O projeto esta em `dbt/dbt_project.yml` com profile `pipelene_dbt`.
+O dbt executa as transformacoes analiticas no Snowflake e tambem encapsula operacoes de carga e exportacao por macros.
 
-### Configuracao
+Configuracao principal:
 
-O target principal e `dev_snowflake`, definido em `dbt/profiles.yml`. As credenciais sao carregadas por variaveis de ambiente:
+- Projeto: `dbt/dbt_project.yml`
+- Profile: `pipelene_dbt`
+- Target principal: `dev_snowflake`
+- Pacote externo: `dbt_utils`
+
+### Profiles e ambiente
+
+`dbt/profiles.yml` define o target `dev_snowflake` usando variaveis de ambiente:
 
 - `DBT_SNOWFLAKE_ACCOUNT`
 - `DBT_SNOWFLAKE_USER`
@@ -129,112 +245,203 @@ O target principal e `dev_snowflake`, definido em `dbt/profiles.yml`. As credenc
 - `DBT_SNOWFLAKE_WAREHOUSE`
 - `DBT_SNOWFLAKE_SCHEMA`
 
-O projeto tambem mantem adaptadores PostgreSQL e Oracle em `requirements.txt`, mas o fluxo principal observado usa Snowflake.
+O `requirements.txt` inclui adaptadores `dbt-postgres`, `dbt-snowflake` e `dbt-oracle`, mas o fluxo do projeto analisado usa Snowflake.
 
-### Estrutura de modelos
+Ponto de atencao:
 
-`models/staging`
+- `dbt/docker-compose.yml` usa default `DBT_TARGET=dev_snowflake`, enquanto `dbt/.env.example` ainda sugere `DBT_TARGET=dev`. Se alguem seguir o exemplo literalmente, o target pode nao existir no `profiles.yml`.
 
-- `sources.yml`: define a source `xeno_raw` no database `XENO_DB`, schema `RAW`, tabela `src_recording_features`.
-- `stg_recording_features.sql`: cria uma view de staging a partir da tabela RAW, renomeando e normalizando campos para nomes analiticos.
-- `stg_recording_features.yml`: documenta e testa campos como `recording_id` e `mfcc_1_mean`.
+### Modelos staging
 
-`models/marts`
+`dbt/models/staging/sources.yml`
 
-- `dim_species.sql`: dimensao de especies, com chave surrogate via `dbt_utils.generate_surrogate_key` e flag `is_target_species`.
-- `fct_recordings.sql`: fato principal, uma linha por gravacao, com metadados, coordenadas, dados de qualidade, features acusticas e label binario.
-- `marts.yml`: testes de unicidade, `not_null` e valores aceitos para `quality_rating`.
+Define a source `xeno_raw`:
+
+- database: `XENO_DB`
+- schema: `RAW`
+- tabela: `src_recording_features`
+
+Tambem declara testes em `id`, como `not_null` e `unique`.
+
+`dbt/models/staging/stg_recording_features.sql`
+
+Cria uma view de staging sobre `RAW.SRC_RECORDING_FEATURES`, renomeando campos tecnicos para nomes analiticos:
+
+- `id` vira `recording_id`
+- `gen` vira `genus`
+- `sp` vira `species`
+- `cnt` vira `country`
+- `q` vira `quality_rating`
+- features acusticas sao propagadas para a gold
+
+### Modelos marts/gold
+
+`dbt/models/marts/dim_species.sql`
+
+Cria dimensao de especies com:
+
+- `species_key` via `dbt_utils.generate_surrogate_key`
+- `genus`
+- `species`
+- `subspecies`
+- `common_name`
+- `is_target_species`
+
+`dbt/models/marts/fct_recordings.sql`
+
+Cria fato com uma linha por gravacao. A tabela contem metadados, localizacao, label binaria `is_target_species` e features acusticas.
+
+`dbt/models/marts/marts.yml`
+
+Define testes:
+
+- `not_null`
+- `unique`
+- `accepted_values` para `quality_rating`
 
 ### Macros
 
-`load_silver_features.sql`
+`dbt/macros/load_silver_features.sql`
 
-Executa um `MERGE` da silver no Snowflake. A macro le Parquet do stage `XENO_DB.RAW.S3_STAGE_SILVER` e atualiza/insere registros em `XENO_DB.RAW.SRC_RECORDING_FEATURES`. A escolha por `MERGE` torna a carga idempotente para reprocessamentos por `id`.
+Executa `MERGE` da silver no Snowflake, lendo Parquets no stage `XENO_DB.RAW.S3_STAGE_SILVER`.
 
-`unload_fct_recordings.sql` e `unload_dim_species.sql`
+Mudanca relevante observada:
 
-Exportam as tabelas gold para S3 usando `COPY INTO`, formato Parquet, `SINGLE = TRUE` e `OVERWRITE = TRUE`. Isso gera arquivos de saida estaveis em:
+- O campo `date` agora e tratado com:
 
-- `gold/fct_recordings.parquet`
-- `gold/dim_species.parquet`
+```sql
+COALESCE(
+    TRY_TO_DATE($1:date::STRING, 'YYYY-MM-DD'),
+    CURRENT_DATE()
+)
+```
 
-### Pacotes
+Isso evita erro em datas invalidas, mas tambem substitui valores problematicos pela data corrente.
 
-O projeto usa `dbt_utils`, definido em `packages.yml`, principalmente para gerar chaves surrogate.
+`dbt/macros/unload_fct_recordings.sql`
 
-### Avaliacao tecnica
+Exporta `fct_recordings` para `S3_STAGE_GOLD/fct_recordings.parquet`.
+
+Mudanca relevante observada:
+
+- A macro agora usa `SELECT * EXCLUDE (...)` para remover colunas identificadoras/textuais antes do unload:
+  - `recording_id`
+  - `genus`
+  - `species`
+  - `subspecies`
+  - `common_name`
+  - `identification_status`
+  - `location`
+  - `quality_rating`
+  - `xeno_canto_url`
+  - `recording_date`
+  - `recording_type`
+
+Objetivo tecnico provavel:
+
+- Gerar um dataset gold mais apropriado para treinamento, reduzindo colunas textuais ou de alta cardinalidade.
+
+Ponto de atencao:
+
+- O Parquet gold local atual ainda apresenta colunas nomeadas como `_COL_0` ate `_COL_63`, indicando que a exportacao via `COPY INTO FROM (SELECT ...)` pode gerar nomes automaticos ou que o arquivo local foi produzido antes/fora da macro atual. A DAG de treinamento esta adaptada a esse padrao `_COL_*`.
+
+`dbt/macros/unload_dim_species.sql`
+
+Exporta `dim_species` para `S3_STAGE_GOLD/dim_species.parquet` com `SINGLE = TRUE` e `OVERWRITE = TRUE`.
+
+### Avaliacao tecnica do dbt
 
 Pontos fortes:
 
 - Separacao clara entre staging e marts.
-- Uso de testes dbt em chaves e campos criticos.
-- Carga silver implementada como `MERGE`, adequada para reprocessamento.
-- Tabelas gold materializadas como `table`, apropriadas para consumo pelo Metabase.
-- Variaveis `target_genus` e `target_species` tornam a especie-alvo configuravel.
+- Uso de `MERGE` para carga idempotente da silver.
+- Uso de `dbt_utils` para chave surrogate.
+- Testes dbt documentados para chaves e qualidade basica.
+- Macro de unload da fact agora considera necessidade de dataset mais limpo para ML.
 
 Pontos de atencao:
 
-- `dbt_project.yml` define marts no schema `gold`, enquanto o script Snowflake cria `XENO_DB.CORE` como gold e concede acesso ao Metabase em `CORE`. Ha divergencia entre `gold` e `CORE`.
-- `sources.yml` fixa `database: XENO_DB`, reduzindo portabilidade entre ambientes.
-- O compose do dbt define `DBT_TARGET` default como `dev_snowflake`, mas `.env.example` usa `DBT_TARGET=dev`; isso pode causar erro se o usuario seguir o exemplo literalmente.
-- O teste dbt existe, mas nao esta ativo na DAG gold principal.
+- `dbt_project.yml` materializa marts no schema `gold`, mas `snowflake/setup_snowflake_xeno.sql` cria e concede permissao no schema `CORE`. Essa divergencia ainda precisa ser resolvida.
+- `sources.yml` fixa `database: XENO_DB`, o que reduz flexibilidade entre ambientes.
+- `SELECT * EXCLUDE` pode depender de comportamento especifico do Snowflake e ainda precisa ser validado contra o schema final esperado no Parquet.
+- `dbt_test` nao esta ativo no fluxo gold principal.
 
 ## 4. Docker
 
 ### Papel no projeto
 
-Docker e usado como camada de reproducibilidade e deploy. O projeto possui configuracoes Docker separadas para Airflow, dbt e Metabase, alem de um script de instalacao para VPS Ubuntu.
+Docker padroniza a execucao dos tres principais servicos de runtime: Airflow, dbt e Metabase.
 
 ### Airflow
 
-O Airflow usa um compose completo com multiplos servicos e uma imagem customizada. Isso permite instalar bibliotecas pesadas de audio e ML sem depender de instalacao manual na VPS.
+`airflow/docker-compose.yml` define um ambiente completo com CeleryExecutor. A imagem customizada instala dependencias de audio, dados e ML. Isso torna o ambiente autocontido, mas aumenta o peso da imagem, especialmente por causa de TensorFlow.
 
 ### dbt
 
-O dbt usa `python:3.10-slim`, instala dependencias do `requirements.txt`, define `DBT_PROFILES_DIR=/usr/app` e monta:
+`dbt/Dockerfile` parte de `python:3.10-slim`, instala dependencias do dbt e define:
 
-- `./` em `/usr/app`
+- `WORKDIR /usr/app`
+- `DBT_PROFILES_DIR=/usr/app`
+- `ORA_PYTHON_DRIVER_TYPE=thin`
+
+`dbt/docker-compose.yml` monta:
+
+- `.` em `/usr/app`
 - `../s3` em `/workspace/s3`
 
-O entrypoint e `dbt`, facilitando execucoes como:
+O entrypoint e `dbt`, permitindo executar comandos como:
 
 - `docker compose run --rm dbt debug`
 - `docker compose run --rm dbt run`
 - `docker compose run --rm dbt test`
-- `docker compose run --rm dbt run-operation <macro>`
+- `docker compose run --rm dbt run-operation load_silver_features`
 
 ### Metabase
 
-O Metabase usa a imagem `metabase/metabase:latest`, porta configuravel por `MB_PORT` e volume persistente `metabase_data`.
+`metabase/docker-compose.yml` usa:
 
-### Script de instalacao
+- imagem `metabase/metabase:latest`
+- porta `${MB_PORT:-3000}`
+- banco interno H2
+- volume `metabase_data`
+- healthcheck em `/api/health`
 
-`docker/install-docker-ubuntu.sh` automatiza instalacao do Docker Engine, CLI, containerd, Buildx e Compose Plugin em Ubuntu. Tambem habilita o servico Docker, adiciona usuario ao grupo `docker` quando aplicavel e libera SSH no UFW.
+### Instalacao Docker em VPS
 
-### Avaliacao tecnica
+`docker/install-docker-ubuntu.sh` automatiza instalacao do Docker em Ubuntu:
+
+- valida que o sistema e Ubuntu;
+- instala pacotes base;
+- configura repositorio oficial Docker;
+- instala Docker CE, CLI, containerd, Buildx e Compose Plugin;
+- habilita/inicia o servico;
+- adiciona usuario ao grupo `docker`, quando aplicavel;
+- habilita UFW e libera porta 22.
+
+### Avaliacao tecnica do Docker
 
 Pontos fortes:
 
-- Ambientes isolados por responsabilidade.
-- Compose do Airflow bem completo para execucao distribuida.
-- Compose do dbt simples e adequado para runner de comandos.
-- Metabase com persistencia local via volume.
+- Separacao de ambientes por responsabilidade.
+- Airflow completo para orquestracao distribuida.
+- dbt simples como runner de comandos.
+- Metabase com persistencia via volume.
 
 Pontos de atencao:
 
-- `metabase/metabase:latest` nao fixa versao, o que pode gerar mudancas inesperadas em deploys futuros.
-- Airflow usa TensorFlow dentro da imagem; isso pode aumentar bastante tempo de build e consumo de memoria.
-- O uso de VPS separadas com SSH exige documentacao operacional rigorosa para chaves, firewall e paths.
+- `metabase/metabase:latest` nao fixa versao.
+- Airflow com TensorFlow pode ter build lento e consumo alto de memoria.
+- O uso de SSH entre VPS exige controle operacional de chaves e firewall.
 
 ## 5. Snowflake
 
 ### Papel no projeto
 
-Snowflake e o data warehouse do projeto. Ele armazena a tabela RAW carregada da silver e recebe as transformacoes dbt para staging/gold.
+Snowflake e o data warehouse do projeto. Ele recebe dados silver via external stage, armazena a tabela RAW tipada e executa os modelos dbt para disponibilizar staging/gold.
 
-### Objetos criados
+### Objetos definidos em setup
 
-O script `snowflake/setup_snowflake_xeno.sql` cria:
+`snowflake/setup_snowflake_xeno.sql` cria:
 
 - Warehouse `XENO_WH`
 - Database `XENO_DB`
@@ -243,177 +450,229 @@ O script `snowflake/setup_snowflake_xeno.sql` cria:
 - Stage `XENO_DB.RAW.S3_STAGE_GOLD`
 - Tabela `XENO_DB.RAW.SRC_RECORDING_FEATURES`
 - Role `METABASE_RO`
-- Usuario de servico `METABASE_SVC`
+- Usuario `METABASE_SVC`
+
+O README do Snowflake agora tambem documenta a execucao do setup inicial pelo script `setup_snowflake_xeno.sql`.
 
 ### Integracao com S3
 
-O Snowflake acessa o S3 via external stages:
+Stages:
 
-- `S3_STAGE_SILVER`: le arquivos Parquet em `s3://xeno-canto-s3/silver/`
-- `S3_STAGE_GOLD`: exporta tabelas para `s3://xeno-canto-s3/gold/`
+- `S3_STAGE_SILVER`: aponta para `s3://xeno-canto-s3/silver/`
+- `S3_STAGE_GOLD`: aponta para `s3://xeno-canto-s3/gold/`
 
-A tabela `SRC_RECORDING_FEATURES` modela os Parquets da silver com colunas tipadas, evitando depender de uma coluna semiestruturada `VARIANT`.
+Uso:
+
+- Leitura da silver para `RAW.SRC_RECORDING_FEATURES`.
+- Escrita de datasets gold por `COPY INTO`.
+
+### Tabela RAW
+
+`SRC_RECORDING_FEATURES` possui colunas tipadas para metadados e features acusticas. Isso reduz dependencia de dados semiestruturados e facilita os modelos dbt.
 
 ### Seguranca e acesso
 
-O script cria uma role read-only para o Metabase, restringindo acesso ao schema definido como gold no script. A intencao esta correta: BI deve consultar apenas tabelas finais, nao RAW nem STAGING.
+O script cria role read-only para Metabase. A intencao e restringir BI apenas aos dados finais. Contudo, a permissao esta apontando para `XENO_DB.CORE`, enquanto o dbt esta configurado para schema `gold`.
 
-### Avaliacao tecnica
+### Avaliacao tecnica do Snowflake
 
 Pontos fortes:
 
-- Warehouse pequeno com auto suspend, adequado para controle de custo.
-- Stages separados para leitura silver e exportacao gold.
+- Warehouse pequeno e com auto suspend.
+- Stages separados para entrada silver e saida gold.
 - Tabela RAW fortemente tipada.
-- Usuario/role dedicados para Metabase.
+- Usuario e role dedicados para Metabase.
 
 Pontos de atencao:
 
-- O script usa placeholders de credenciais AWS diretamente no SQL. Em producao, o ideal e usar Storage Integration do Snowflake, evitando chaves estaticas em scripts.
-- Ha divergencia entre schema gold no dbt (`gold`) e schema de permissao no Snowflake (`CORE`).
-- Comentario do warehouse diz "60s", mas `AUTO_SUSPEND = 120`; alinhar comentario e configuracao.
+- O script ainda usa credenciais AWS diretamente no stage; Storage Integration seria mais adequado.
+- Divergencia `CORE` vs `gold` permanece.
+- O comentario do warehouse menciona 60 segundos, mas `AUTO_SUSPEND = 120`.
 
 ## 6. S3
 
 ### Papel no projeto
 
-O S3 funciona como data lake do pipeline. O diretorio `s3/` simula localmente a estrutura do bucket e contem exemplos reais de arquivos.
+O S3 e o data lake do pipeline. A pasta `s3/` simula/espelha a estrutura do bucket com dados reais de amostra.
 
-### Estrutura observada
+### Estado atual da amostra local
 
-Camada bronze:
+Bronze:
 
-- `s3/broze/audio/`: audio MP3 bruto.
-- `s3/broze/metatada/`: JSONs de metadados e consultas.
+- `s3/broze/audio/`: 15 arquivos de audio.
+- Distribuicao de audio:
+  - 7 arquivos `.wav`
+  - 8 arquivos `.mp3`
+- `s3/broze/metatada/`: 15 JSONs individuais de metadados.
+- `s3/broze/query/`: 3 JSONs de consulta:
+  - `sp-pitangus-sulphuratus.json`
+  - `sp-sporophila-angolensis.json`
+  - `sp-turdus-rufiventris.json`
 
-Camada silver:
+Silver:
 
-- `s3/silver/<id>.parquet`: Parquets por gravacao com metadados e features acusticas.
-- `s3/silver/audio_features.parquet` e `s3/silver/recordings.parquet`: arquivos presentes, mas com tamanho 0 no workspace.
+- `s3/silver/`: 15 arquivos Parquet, um por gravacao.
+- Cada Parquet silver analisado possui 1 linha e 64 colunas.
+- O schema contem metadados, data em string normalizada, coordenadas e features acusticas.
 
-Camada gold:
+Gold:
 
-- `s3/gold/dim_species.parquet`
-- `s3/gold/fct_recordings.parquet`
+- `s3/gold/dim_species.parquet`: 22 linhas e 6 colunas.
+- `s3/gold/fct_recordings.parquet`: 1192 linhas e 64 colunas.
 
-### Uso no pipeline
+### Observacao sobre nomenclatura local
 
-O Airflow grava bronze e silver diretamente no S3 via `S3Hook`. O Snowflake le silver por stage e o dbt exporta gold de volta para S3 via macros de unload. A DAG de treinamento consome `gold/fct_recordings.parquet`.
+A pasta local ainda usa `broze` e `metatada`, enquanto as DAGs usam `bronze` e `metadata`. Portanto:
 
-### Avaliacao tecnica
+- No codigo Airflow, os paths esperados sao `bronze/audio`, `bronze/metadata` e `bronze/query`.
+- Na amostra local, os paths aparecem como `s3/broze/audio`, `s3/broze/metatada` e `s3/broze/query`.
+
+Isso deve ser tratado como divergencia de simulacao local/documentacao versus bucket real.
+
+### Avaliacao tecnica do S3
 
 Pontos fortes:
 
-- Camadas de dados bem definidas.
-- Uso de Parquet na silver e gold, adequado para eficiencia e tipagem.
-- Gold exportada com nomes estaveis para consumo posterior.
+- Amostra local cresceu e agora representa melhor o pipeline.
+- Silver esta consistente como um Parquet por gravacao.
+- Gold possui dataset consolidado para BI/ML.
 
 Pontos de atencao:
 
-- Ha nomes de diretorios com erros de digitacao no workspace: `broze` e `metatada`. As DAGs usam `bronze` e `metadata`; isso indica divergencia entre simulacao local e paths esperados no bucket real.
-- Alguns arquivos silver locais estao vazios, o que pode quebrar testes ou leituras se forem usados como amostra.
-- O repositorio contem arquivos de dados e audio; dependendo do objetivo, pode ser melhor manter apenas amostras pequenas ou usar Git LFS.
+- Corrigir `broze` para `bronze` e `metatada` para `metadata` se essa estrutura local for usada como referencia operacional.
+- O repositorio guarda arquivos de audio e Parquet; para dados maiores, Git LFS ou armazenamento externo seria mais adequado.
+- O Parquet gold exportado pelo Snowflake possui colunas `_COL_*`, o que reduz legibilidade e acopla a DAG de treinamento a posicoes de coluna.
 
 ## 7. Metabase
 
 ### Papel no projeto
 
-Metabase e usado como ferramenta de BI e visualizacao. Ele deve se conectar ao Snowflake usando o usuario de servico `METABASE_SVC` e role `METABASE_RO`.
+Metabase e a ferramenta de BI e visualizacao. Ele deve se conectar ao Snowflake usando credenciais controladas e role read-only.
 
 ### Configuracao Docker
 
-O compose em `metabase/docker-compose.yml` sobe um container unico:
+`metabase/docker-compose.yml` sobe um container unico com:
 
-- imagem `metabase/metabase:latest`
-- porta `3000` por padrao
-- banco interno H2
-- volume `metabase_data` para persistencia
-- healthcheck em `/api/health`
+- `metabase/metabase:latest`
+- porta padrao `3000`
+- banco H2 em `/metabase-data/metabase.db`
+- volume `metabase_data`
+- healthcheck HTTP
 
-### Configuracao funcional
+### Documentacao funcional
 
-O README documenta:
+`metabase/README.md` documenta:
 
-- setup inicial do Metabase;
+- setup inicial;
 - criacao de usuario;
 - conexao com Snowflake;
-- configuracao de mapa customizado do Brasil via GeoJSON.
+- configuracao de mapa do Brasil por GeoJSON;
+- painel Xeno-Canto;
+- matriz/visualizacao adicional.
 
-### Avaliacao tecnica
+Mudanca relevante observada:
+
+- Foram adicionadas secoes de painel Xeno-Canto e matriz, com imagens `image-16.png`, `image-17.png` e `image-18.png`. Isso indica que a camada de BI evoluiu de setup/conexao para dashboards efetivos.
+
+### Avaliacao tecnica do Metabase
 
 Pontos fortes:
 
-- Deploy simples e independente.
-- Persistencia configurada por volume Docker.
-- Uso de role read-only no Snowflake, reduzindo risco de acesso indevido.
+- Deploy simples.
+- Volume persistente para manter configuracoes.
+- Documentacao visual do setup e do dashboard.
+- Uso previsto de role read-only no Snowflake.
 
 Pontos de atencao:
 
-- H2 e simples para projeto academico ou demonstracao, mas nao e ideal para producao. Para uso continuo, recomenda-se PostgreSQL como banco de aplicacao do Metabase.
-- Imagem `latest` deve ser fixada em uma versao para evitar atualizacoes inesperadas.
-- Permissoes no Snowflake precisam ser alinhadas ao schema real usado pelo dbt.
+- H2 e aceitavel para demonstracao, mas nao para producao.
+- A imagem `latest` deve ser fixada para evitar atualizacoes inesperadas.
+- Grants do Snowflake precisam apontar para o schema realmente materializado pelo dbt.
 
-## 8. Fluxo tecnico integrado
+## 8. Fluxo integrado atualizado
 
 ```text
 API Xeno-Canto
     |
     v
-Airflow bronze DAG
+Airflow bronze
+    - consulta por especie
+    - per_page=500
+    - salva query JSON
+    - salva audio + metadata
     |
     v
-S3 bronze: audio + metadata JSON
+S3 bronze
+    - bronze/query
+    - bronze/audio
+    - bronze/metadata
     |
     v
-Airflow silver DAG com librosa
+Airflow silver
+    - lista audio + metadata
+    - divide em lotes de 10
+    - retry por gravacao
+    - registra erros em erros/silver
+    - extrai features librosa
     |
     v
-S3 silver: Parquet com metadados + features acusticas
+S3 silver
+    - um Parquet por gravacao
     |
     v
-Snowflake stage + dbt macro load_silver_features
+Airflow gold via SSHOperator
     |
     v
-Snowflake RAW.SRC_RECORDING_FEATURES
+dbt remoto em Docker
+    - load_silver_features
+    - run staging
+    - run marts
+    - unload gold
     |
     v
-dbt staging view
+Snowflake
+    - RAW.SRC_RECORDING_FEATURES
+    - staging view
+    - marts/gold tables
     |
-    v
-dbt gold tables: dim_species + fct_recordings
+    +--> Metabase dashboard
     |
-    +--> Metabase / BI
-    |
-    +--> dbt unload para S3 gold
+    +--> S3 gold
              |
              v
-        Airflow treinamento / modelos IA
+        Airflow treinamento
 ```
 
 ## 9. Principais riscos tecnicos identificados
 
-1. Divergencia de schemas: dbt usa `gold`, Snowflake setup usa `CORE` para gold/permissoes.
-2. Divergencia de paths S3: workspace local usa `broze/metatada`, DAGs usam `bronze/metadata`.
-3. Teste dbt comentado na DAG gold, reduzindo garantia antes de publicar gold.
-4. Uso de credenciais AWS em stage Snowflake por chave estatica, em vez de Storage Integration.
-5. Metabase com banco H2 e imagem `latest`, adequado para demonstracao, mas fragil para producao.
-6. Dependencia de SSH entre droplets para acionar dbt, exigindo monitoramento de chave, firewall, path remoto e disponibilidade da VPS.
-7. Colunas `_COL_*` na DAG de treinamento sugerem risco de schema instavel para ML.
+1. Divergencia entre schema dbt `gold` e schema Snowflake/Metabase `CORE`.
+2. Divergencia local de paths `broze/metatada` versus paths das DAGs `bronze/metadata`.
+3. `dbt_test` ainda comentado na DAG gold principal.
+4. Uso de credenciais AWS diretamente em stages Snowflake.
+5. Metabase usa H2 e imagem `latest`.
+6. Dataset gold local com colunas `_COL_*`, exigindo logica posicional no treinamento.
+7. Fallback de data invalida para data atual pode ocultar problemas de qualidade.
+8. SSH entre droplets e montagem de chave no worker aumentam responsabilidade operacional.
 
 ## 10. Recomendacoes
 
-1. Alinhar nomenclatura de schemas: escolher `GOLD` ou `CORE` e refletir isso no Snowflake, dbt e grants do Metabase.
-2. Corrigir paths locais/documentados de S3 para `bronze/metadata`, mantendo consistencia com as DAGs.
-3. Reativar `dbt test` na DAG gold antes dos unloads.
-4. Substituir credenciais AWS estaticas em stages por Snowflake Storage Integration.
-5. Fixar versoes Docker, especialmente Metabase.
-6. Trocar H2 por PostgreSQL se Metabase for usado continuamente.
-7. Padronizar schema do Parquet gold para evitar dependencia de `_COL_*` no treinamento.
-8. Adicionar testes automatizados para macros dbt, DAG parsing e validacao de schema dos Parquets.
-9. Documentar runbook operacional: variaveis Airflow, connections, secrets, chaves SSH, buckets, stages e comandos de recuperacao.
+1. Alinhar definitivamente o schema final: usar `GOLD` ou `CORE`, mas nao os dois.
+2. Atualizar Snowflake grants para o mesmo schema materializado pelo dbt.
+3. Reativar `dbt test` antes dos unloads na DAG gold.
+4. Corrigir a estrutura local `s3/broze/metatada` para `s3/bronze/metadata`, caso ela seja usada como espelho do bucket.
+5. Validar se `unload_fct_recordings.sql` esta gerando exatamente o schema esperado para ML.
+6. Se possivel, exportar gold com nomes semanticos de colunas para reduzir dependencia de `_COL_*`.
+7. Tornar `tamanho_lote` da DAG silver configuravel via Airflow Variable.
+8. Registrar metricas de qualidade: quantidade de audios processados, falhas por lote, arquivos em `erros/silver`.
+9. Substituir stages com AWS key/secret por Snowflake Storage Integration.
+10. Fixar versao do Metabase no Docker Compose.
+11. Considerar PostgreSQL como banco de aplicacao do Metabase se o uso for continuo.
+12. Avaliar Git LFS ou remocao dos dados binarios grandes do repositorio.
 
 ## 11. Conclusao
 
-O projeto apresenta uma arquitetura coerente de pipeline moderno de dados: ingestao com Airflow, armazenamento em S3, processamento analitico com Snowflake/dbt, consumo em Metabase e uma etapa de IA usando os dados gold. A separacao em camadas bronze, silver e gold esta bem representada no codigo.
+O projeto evoluiu de uma estrutura inicial de pipeline para uma implementacao mais robusta, especialmente na camada silver. A DAG silver agora processa em lotes, possui retry por gravacao, registra falhas no S3 e limpa arquivos temporarios. A DAG bronze tambem foi ajustada para obter mais resultados por consulta e corrigiu a importacao de `AirflowException`.
 
-Os principais ajustes tecnicos recomendados sao de consistencia operacional e robustez: alinhar nomes de schemas e paths, ativar testes no fluxo principal, fortalecer gestao de credenciais e estabilizar versoes Docker. Com esses ajustes, a solucao fica mais previsivel, auditavel e preparada para evoluir alem de uma demonstracao academica.
+No dbt, a carga silver ficou mais tolerante a datas invalidas, e o unload da fact passou a tentar gerar um dataset mais adequado para ML ao excluir colunas textuais. A amostra S3 tambem cresceu e agora mostra um conjunto mais realista: 15 audios/metadados, 15 Parquets silver e arquivos gold consolidados.
+
+Os pontos mais importantes para estabilizacao continuam sendo consistencia de schemas e paths, ativacao dos testes dbt no fluxo principal, melhoria da gestao de credenciais Snowflake/S3 e reducao da dependencia de colunas `_COL_*` no treinamento.

@@ -32,3 +32,12 @@ Para obter ou validar as credenciais do Snowflake, acesse a página de autentica
 ![alt text](image-8.png)
 
 ![alt text](image-9.png)
+
+## Execução do Setup Inicial
+
+```bash
+setup_snowflake_xeno.sql
+```
+
+![alt text](image-10.png)
+

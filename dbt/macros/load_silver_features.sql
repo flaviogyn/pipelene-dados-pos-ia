@@ -33,7 +33,10 @@
                 $1:loc::STRING                         AS loc,
                 $1:q::STRING                           AS q,
                 $1:url::STRING                         AS url,
-                $1:date::DATE                          AS date,
+                COALESCE(
+                    TRY_TO_DATE($1:date::STRING, 'YYYY-MM-DD'),
+                    CURRENT_DATE()
+                )                                     AS date,
                 $1:type::STRING                        AS type,
                 $1:lat::FLOAT                          AS lat,
                 $1:lon::FLOAT                          AS lon,

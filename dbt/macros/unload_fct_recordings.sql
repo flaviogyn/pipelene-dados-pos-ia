@@ -16,7 +16,22 @@
 
     {% set unload_sql %}
         COPY INTO @XENO_DB.RAW.S3_STAGE_GOLD/fct_recordings.parquet
-        FROM {{ ref('fct_recordings') }}
+        FROM (
+            SELECT * EXCLUDE (
+                recording_id,
+                genus,
+                species,
+                subspecies,
+                common_name,
+                identification_status,
+                location,
+                quality_rating,
+                xeno_canto_url,
+                recording_date,
+                recording_type
+            )
+            FROM {{ ref('fct_recordings') }}
+        )
         FILE_FORMAT = (TYPE = PARQUET)
         OVERWRITE = TRUE
         SINGLE = TRUE
