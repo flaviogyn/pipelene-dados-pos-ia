@@ -58,30 +58,29 @@ def ai_xeno_canto_treinamento():
 
         df = pd.read_json(io.StringIO(dados), orient="split")
 
-        # Transforma a coluna categórica _COL_6 em colunas numéricas.
-        df_COL_6 = pd.get_dummies(
-            df['_COL_6'],
-            prefix='_COL_6',
+        # Transforma a coluna categórica _COL_0 em colunas numéricas.
+        df_COL_0 = pd.get_dummies(
+            df['_COL_0'],
+            prefix='_COL_0',
             dtype=int
         )
-        df = df.drop('_COL_6', axis=1).join(df_COL_6)
-        df['_COL_16'] = df['_COL_16'].astype(int)
+        df = df.drop('_COL_0', axis=1).join(df_COL_0)
+        df['_COL_5'] = df['_COL_5'].astype(int)
 
-        # _COL_16 é a variável alvo. As colunas anteriores contêm textos e
-        # metadados; além da _COL_6 codificada, as features acústicas estão
-        # a partir da _COL_17.
+        # _COL_5 é a variável alvo. Além da _COL_0 codificada, as features
+        # acústicas estão a partir da _COL_6.
         colunas_entrada = [
             coluna for coluna in df.columns
             if (
                 coluna.startswith('_COL_')
                 and coluna.removeprefix('_COL_').isdigit()
-                and int(coluna.removeprefix('_COL_')) >= 17
+                and int(coluna.removeprefix('_COL_')) >= 6
             )
         ]
-        colunas_entrada.extend(df_COL_6.columns)
+        colunas_entrada.extend(df_COL_0.columns)
 
         X = df[colunas_entrada].astype(np.float32)
-        y = df['_COL_16']
+        y = df['_COL_5']
 
         X_treino, X_teste, y_treino, y_teste = train_test_split(
             X,
@@ -155,26 +154,26 @@ def ai_xeno_canto_treinamento():
         df = pd.read_json(io.StringIO(dados), orient="split")
 
         # Aplica o mesmo tratamento categórico usado no modelo com biblioteca.
-        df_COL_6 = pd.get_dummies(
-            df['_COL_6'],
-            prefix='_COL_6',
+        df_COL_0 = pd.get_dummies(
+            df['_COL_0'],
+            prefix='_COL_0',
             dtype=int
         )
-        df = df.drop('_COL_6', axis=1).join(df_COL_6)
-        df['_COL_16'] = df['_COL_16'].astype(int)
+        df = df.drop('_COL_0', axis=1).join(df_COL_0)
+        df['_COL_5'] = df['_COL_5'].astype(int)
 
         colunas_entrada = [
             coluna for coluna in df.columns
             if (
                 coluna.startswith('_COL_')
                 and coluna.removeprefix('_COL_').isdigit()
-                and int(coluna.removeprefix('_COL_')) >= 17
+                and int(coluna.removeprefix('_COL_')) >= 6
             )
         ]
-        colunas_entrada.extend(df_COL_6.columns)
+        colunas_entrada.extend(df_COL_0.columns)
 
         X = df[colunas_entrada].astype(np.float32)
-        y = df['_COL_16'].to_numpy(dtype=np.float32).reshape(-1, 1)
+        y = df['_COL_5'].to_numpy(dtype=np.float32).reshape(-1, 1)
 
         X_treino, X_teste, y_treino, y_teste = train_test_split(
             X,
