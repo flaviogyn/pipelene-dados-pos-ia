@@ -154,4 +154,21 @@ Acesse as Configurações:
 
   ![alt text](image-15.png)
   
-  
+## Painel Xeno Canto
+
+```text
+Dasboard
+```
+
+![alt text](image-16.png)
+
+![alt text](image-17.png)
+
+```text
+Matriz
+```
+
+![alt text](image-18.png)
+
+
+
