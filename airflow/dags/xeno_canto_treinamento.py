@@ -115,7 +115,7 @@ def ai_xeno_canto_treinamento():
         modelo.fit(
             X_treino,
             y_treino,
-            epochs=400,
+            epochs=50,
             verbose=0
         )
 
@@ -229,7 +229,7 @@ def ai_xeno_canto_treinamento():
         velocidade_pesos_saida = np.zeros_like(pesos_saida)
         velocidade_vies_saida = np.zeros_like(vies_saida)
 
-        for _ in range(400):
+        for _ in range(50):
             valor_oculta, camada_oculta, probabilidades = executar_rede(
                 X_treino
             )
