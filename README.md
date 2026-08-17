@@ -54,7 +54,7 @@ Folder Silver/
 ![alt text](image-6.png)
 
 Folder Gold/
- 
+
 ![alt text](s3-gold.png)
 
 Folder Treinamentos/
@@ -82,7 +82,6 @@ IP: 142.93.205.113
 ```
 
 ![alt text](dbt.png)
-
 
 ## FrontEnd (Interface Upload Dags do Airflow)
 
@@ -125,13 +124,17 @@ http://airflow.dcco.net.br:8080/
 ## Metabase
 
 ```bash
-http://142.93.249.68:3000/public/dashboard/b35e9826-8639-4a1c-995d-a06177f5f629
+http://142.93.249.68:3000
 ```
 
+Link publico válido 24h (precisa renovar token Snowflake)
+
+```bash
+http://142.93.249.68:3000/public/dashboard/b35e9826-8639-4a1c-995d-a06177f5f629
+```
 
 ![alt text](metabase-01.png)
 
 ![alt text](metabase-02.png)
 
 ![alt text](metabase-03.png)
-
