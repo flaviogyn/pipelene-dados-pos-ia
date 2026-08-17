@@ -146,7 +146,7 @@ def ai_xeno_canto_treinamento():
 
             optimizer=tf.keras.optimizers.SGD(
                 learning_rate=0.001,
-                momentum=0.9
+                momentum=0.9 # Ajudando a acelerar e estabilizar o treinamento
             ),
 
             loss=tf.keras.losses.BinaryCrossentropy(),
@@ -225,7 +225,6 @@ def ai_xeno_canto_treinamento():
             y_teste,
             verbose=0
         )
-
 
         # SALVAR MODELO
         #
