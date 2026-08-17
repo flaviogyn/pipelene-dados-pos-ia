@@ -7,19 +7,29 @@
 ### Flávio Lourenço da Silva
 ### Gustavo Adolpho Souteras Barbosa
 
-## O que falta
-
-- Conector para o dbt para usar no airflow
-- Transformar as dags em funções Python
-- Adicionar mais testes
-
-## Arquitetura Cloud do Projeto
+## Arquitetura do Projeto Cloud
 
 ![alt text](image.png)
 
+## Fluxo de execução
+
+![alt text](fluxo_pipeline_xeno_canto.png)
+
+## Origem dos dados
+
+![alt text](image-9.png)
+
+```bash
+https://xeno-canto.org/explore/api
+```
+
 ## S3
 
+Pastas S3
+
 ![alt text](image-1.png)
+
+Camada Bronze
 
 ![alt text](image-2.png)
 
@@ -29,17 +39,37 @@
 
 ![alt text](image-5.png)
 
-![alt text](image-6.png)
-
-## Execuções Airflow
-
-Camada Bronze
-
 Camada Silver
+
+![alt text](image-6.png)
 
 Camada Gold
  
 ![alt text](image-7.png)
 
 Camada Treinamento
+
+
+## Snowflake
+
+Setup de inicial 
+
+![alt text](image-10.png)
+
+![alt text](image-11.png)
+
+![alt text](image-12.png)
+
+## Execuções Airflow
+
+ai_xeno_canto_bronze
+
+ai_xeno_canto_silver
+
+ai_xeno_canto_gold
+
+![alt text](image-8.png)
+
+ai_xeno_canto_treinamento
+
 

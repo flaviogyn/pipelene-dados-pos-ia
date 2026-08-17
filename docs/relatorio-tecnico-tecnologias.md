@@ -197,28 +197,64 @@ Arquivo: `airflow/dags/xeno_canto_treinamento.py`
 
 Responsabilidade:
 
-- Baixa `gold/fct_recordings.parquet` do S3.
-- Treina dois modelos:
-  - TensorFlow/Keras.
-  - Rede neural implementada manualmente com NumPy.
+- Orquestra o pipeline completo de treinamento de modelos de IA.
+- Baixa `gold/fct_recordings.parquet` do S3 como fonte de dados.
+- Treina dois modelos de rede neural em paralelo:
+  - **Modelo Keras/TensorFlow**: implementacao com bibliotecas, usando SGD com momentum.
+  - **Modelo NumPy (hardcode)**: implementacao manual da rede neural sem dependencias de ML.
 - Salva artefatos de modelo e resultados no S3.
+- Utiliza Airflow Tasks para paralelizacao e gerencia de dependencias.
+
+Fluxo de tasks:
+
+1. **carregar_dados()**: Baixa o arquivo Parquet `gold/fct_recordings.parquet` do S3 usando S3Hook. Converte o DataFrame para JSON (orient="split") para permitir serializacao via XCom entre tasks distribuidas.
+
+2. **treinar_modelo_biblioteca(dados)**: Treina modelo TensorFlow/Keras.
+   - Transforma a coluna categorica `_COL_0` via `pd.get_dummies`.
+   - Define `_COL_5` como variavel alvo (convertida para inteiro).
+   - Seleciona features numericas a partir de `_COL_6` em diante.
+   - Divide dados em treino (64%), validacao (16%) e teste (20%).
+   - Aplica StandardScaler para normalizacao.
+   - Modelo: Input -> Dense(32, ReLU) -> Dense(16, ReLU) -> Dense(1, Sigmoid).
+   - Optimizer: SGD com learning_rate=0.001 e momentum=0.9.
+   - Loss: BinaryCrossentropy.
+   - Callbacks: ModelCheckpoint (salva melhor modelo) e EarlyStopping (patience=20).
+   - Salva melhor modelo em `treinamentos/modelo.keras`.
+   - Retorna: perda (loss) e taxa de acerto no conjunto de teste.
+
+3. **treinar_modelo_hardcode(dados)**: Treina modelo rede neural com NumPy puro.
+   - Mesmo preprocessamento de dados que o modelo Keras.
+   - Arquitetura identica (input -> 32 neuronios -> 16 neuronios -> 1 neuronio de saida).
+   - Implementacao manual de forward propagation, backpropagation e SGD.
+   - Early stopping manual com patience=20.
+   - Salva pesos, vieses, parametros do StandardScaler e lista de features em `treinamentos/modelo_hardcode.npz`.
+   - Retorna: perda e taxa de acerto no conjunto de teste.
+
+4. **salvar_resultados(resultado1, resultado2)**: Agrupa resultados de ambos os modelos em JSON.
+   - Estrutura: `{"biblioteca": {...}, "hardcode": {...}}`.
+   - Cada entrada contem: `perda` (float), `taxa_acerto` (float), `modelo` (caminho S3).
+   - Salva em `treinamentos/resultados.json`.
 
 Mudanca relevante observada:
 
-- A coluna categorica `_COL_6` agora e transformada via `pd.get_dummies`.
-- `_COL_16` e convertida para inteiro e usada como alvo.
-- As features numericas continuam sendo selecionadas a partir de `_COL_17`.
-- As colunas dummy geradas de `_COL_6` sao adicionadas ao conjunto de entrada.
+- A coluna categorica `_COL_0` (antes `_COL_6`) agora e transformada via `pd.get_dummies`.
+- `_COL_5` (antes `_COL_16`) e convertida para inteiro e usada como alvo.
+- As features numericas continuam sendo selecionadas a partir de `_COL_6` (antes `_COL_17`).
+- As colunas dummy geradas de `_COL_0` sao adicionadas ao conjunto de entrada.
+- Ambos os modelos agora usam a mesma estrategia de train/validation/test split e normalizacao para comparacao justa.
 
-Artefatos gerados:
+Artefatos gerados em `s3/treinamentos/`:
 
-- `treinamentos/modelo.keras`
-- `treinamentos/modelo_hardcode.npz`
-- `treinamentos/resultados.json`
+- `modelo.keras`: Arquivo de modelo TensorFlow/Keras com melhor performance durante treinamento.
+- `modelo_hardcode.npz`: Arquivo NPZ contendo pesos, vieses e parametros de normalizacao do modelo NumPy.
+- `resultados.json`: JSON com metricas finais de ambos os modelos (perda e taxa de acerto no conjunto de teste).
 
 Ponto de atencao:
 
 - O modelo ainda depende de nomes `_COL_*`, que aparecem no Parquet gold exportado pelo Snowflake. Isso funciona com o arquivo atual, mas e menos explicito do que usar nomes semanticos de colunas.
+- Ambos os modelos usam `random_state=43` para reprodutibilidade.
+- O modelo Keras depende de TensorFlow, enquanto o modelo hardcode depende apenas de NumPy.
+- Os resultados podem divergir entre os dois modelos devido a diferencas em implementacao de SGD, inicializacao de pesos e regularizacao.
 
 ## 3. dbt
 
@@ -518,7 +554,31 @@ Silver:
 Gold:
 
 - `s3/gold/dim_species.parquet`: 22 linhas e 6 colunas.
-- `s3/gold/fct_recordings.parquet`: 1192 linhas e 64 colunas.
+- `s3/gold/fct_recordings.parquet`: 1192 linhas e 64 colunas. Esta tabela e a fonte principal para o treinamento de modelos de IA.
+
+Treinamentos:
+
+- `s3/treinamentos/modelo.keras`: Modelo treinado com TensorFlow/Keras. Arquivo de extensao `.keras` contendo pesos, arquitetura e hyperparametros do modelo.
+- `s3/treinamentos/modelo_hardcode.npz`: Modelo treinado com NumPy puro. Arquivo NPZ (formato comprimido de NumPy) contendo:
+  - Pesos de todas as camadas (oculta 1, oculta 2 e saida).
+  - Vieses de todas as camadas.
+  - Parametros do StandardScaler (media e escala).
+  - Lista de nomes das features na ordem exata utilizada no treinamento.
+- `s3/treinamentos/resultados.json`: Arquivo JSON com metricas de desempenho de ambos os modelos. Estrutura esperada:
+  ```json
+  {
+    "biblioteca": {
+      "perda": <float>,
+      "taxa_acerto": <float>,
+      "modelo": "treinamentos/modelo.keras"
+    },
+    "hardcode": {
+      "perda": <float>,
+      "taxa_acerto": <float>,
+      "modelo": "treinamentos/modelo_hardcode.npz"
+    }
+  }
+  ```
 
 ### Observacao sobre nomenclatura local
 

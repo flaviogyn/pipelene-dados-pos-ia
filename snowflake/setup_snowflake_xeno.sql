@@ -95,7 +95,10 @@ CREATE TABLE IF NOT EXISTS XENO_DB.RAW.SRC_RECORDING_FEATURES (
 -- 3. Role read-only dedicada para o Metabase.
 --    Acesso só à schema GOLD -- Metabase nunca precisa ver
 --    RAW (dado bruto) nem STAGING (camada intermediária).
+-- Opcional
 -- ------------------------------------------------------------
+
+/*
 CREATE ROLE IF NOT EXISTS METABASE_RO;
 
 GRANT USAGE ON WAREHOUSE XENO_WH TO ROLE METABASE_RO;
@@ -113,3 +116,4 @@ CREATE USER IF NOT EXISTS METABASE_SVC
     MUST_CHANGE_PASSWORD = FALSE;
 
 GRANT ROLE METABASE_RO TO USER METABASE_SVC;
+*/
