@@ -1,11 +1,13 @@
 # Projeto Pipelene de Dados
 
-### INTELIGÊNCIA ARTIFICIAL APLICADA - MODULO 02
-### Professores: Otávio Calaça Xavier, Sirlon e Alexandre
-### Alunos:
-### Afrain da Silva Calixto
-### Flávio Lourenço da Silva
-### Gustavo Adolpho Souteras Barbosa
+```text
+INTELIGÊNCIA ARTIFICIAL APLICADA - MODULO 02
+Professores Dr: Otávio Calaça, Sirlon Diniz e Rafael Gomes
+Alunos:
+  Afrain da Silva Calixto
+  Flávio Lourenço da Silva
+  Gustavo Adolpho Souteras Barbosa
+```
 
 ## Arquitetura do Projeto Cloud
 
@@ -25,11 +27,11 @@ https://xeno-canto.org/explore/api
 
 ## S3
 
-Pastas S3
+Folders do S3
 
-![alt text](image-1.png)
+![alt text](xeno-canto-s3.png)
 
-Camada Bronze
+Folder Bronze/
 
 ![alt text](image-2.png)
 
@@ -39,20 +41,21 @@ Camada Bronze
 
 ![alt text](image-5.png)
 
-Camada Silver
+Folder Silver/
 
 ![alt text](image-6.png)
 
-Camada Gold
+Folder Gold/
  
-![alt text](image-7.png)
+![alt text](s3-gold.png)
 
-Camada Treinamento
+Folder Treinamentos/
 
+![alt text](s3-treinamento.png)
 
 ## Snowflake
 
-Setup de inicial 
+Setup de inicial SQL
 
 ![alt text](image-10.png)
 
@@ -60,16 +63,42 @@ Setup de inicial
 
 ![alt text](image-12.png)
 
+## Dbt
+
+![alt text](dbt.png)
+
+
 ## Execuções Airflow
 
 ai_xeno_canto_bronze
 
+![alt text](bronze-exec.png)
+
+![alt text](bronze.png)
+
 ai_xeno_canto_silver
 
-ai_xeno_canto_gold
+![alt text](silver.png)
+
+![alt text](silver-exec.png)
+
+ai_xeno_canto_gold (ssh)
 
 ![alt text](image-8.png)
 
+![alt text](image-13.png)
+
 ai_xeno_canto_treinamento
 
+![alt text](treinamento.png)
+
+![alt text](treinamento-exec.png)
+
+## Metabase
+
+![alt text](metabase-01.png)
+
+![alt text](metabase-02.png)
+
+![alt text](metabase-03.png)
 
