@@ -11,6 +11,10 @@ Alunos:
 
 ## Arquitetura do Projeto Cloud
 
+```bash
+https://cloud.digitalocean.com/
+```
+
 ![alt text](image.png)
 
 ## Fluxo de execução
@@ -19,13 +23,17 @@ Alunos:
 
 ## Origem dos dados
 
-![alt text](image-9.png)
-
 ```bash
 https://xeno-canto.org/explore/api
 ```
 
+![alt text](image-9.png)
+
 ## S3
+
+```bash
+https://www.awsacademy.com/vforcesite/LMS_Login
+```
 
 Folders do S3
 
@@ -55,6 +63,10 @@ Folder Treinamentos/
 
 ## Snowflake
 
+```bash
+https://app.snowflake.com/
+```
+
 Setup de inicial SQL
 
 ![alt text](image-10.png)
@@ -65,36 +77,57 @@ Setup de inicial SQL
 
 ## Dbt
 
+```bash
+IP: 142.93.205.113
+```
+
 ![alt text](dbt.png)
 
 
+## FrontEnd (Interface Upload Dags do Airflow)
+
+```bash
+http://airflow.dcco.net.br:5000/
+```
+
+![alt text](image-14.png)
+
 ## Execuções Airflow
 
-ai_xeno_canto_bronze
+```bash
+http://airflow.dcco.net.br:8080/
+```
+
+### ai_xeno_canto_bronze
 
 ![alt text](bronze-exec.png)
 
 ![alt text](bronze.png)
 
-ai_xeno_canto_silver
+### ai_xeno_canto_silver
 
 ![alt text](silver.png)
 
 ![alt text](silver-exec.png)
 
-ai_xeno_canto_gold (ssh)
+### ai_xeno_canto_gold (ssh)
 
 ![alt text](image-8.png)
 
 ![alt text](image-13.png)
 
-ai_xeno_canto_treinamento
+### ai_xeno_canto_treinamento
 
 ![alt text](treinamento.png)
 
 ![alt text](treinamento-exec.png)
 
 ## Metabase
+
+```bash
+http://142.93.249.68:3000/public/dashboard/b35e9826-8639-4a1c-995d-a06177f5f629
+```
+
 
 ![alt text](metabase-01.png)
 
