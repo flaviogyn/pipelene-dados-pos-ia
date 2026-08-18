@@ -212,15 +212,17 @@ docker compose up -d airflow-worker
 
 ### Variáveis
 
-![alt text](image.png)
+![alt text](variaveis-01.png)
+
+![alt text](variaveis-02.png)
 
 ### Conexões
 
-![alt text](image-1.png)
+![alt text](connections.png)
 
-![alt text](image-3.png)
+![alt text](conn-aws-01.png)
 
-![alt text](image-2.png)
+![alt text](conn-aws-02.png)
 
 8. Dependencias Python do Airflow
 
